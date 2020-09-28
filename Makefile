@@ -1,4 +1,4 @@
-MODULENAME := khidden-file-sender
+MODULENAME := khidden_file_sender
 
 obj-m += $(MODULENAME).o
 
