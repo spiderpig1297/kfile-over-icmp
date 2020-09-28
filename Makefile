@@ -16,8 +16,8 @@ $(MODULENAME)-y += source.o core.o
 
 ccflags-y := -O0 -Wno-declaration-after-statement
 
-KERNELDIR ?= ~/workspace/buildroot/output/build/linux-4.19.98
-# KERNELDIR ?= /lib/modules/4.10.0-38-generic/build
+# KERNELDIR ?= ~/workspace/buildroot/output/build/linux-4.19.98
+KERNELDIR ?= /lib/modules/4.10.0-38-generic/build
 PWD       := $(shell pwd)
 
 debug:
@@ -25,8 +25,8 @@ debug:
 release:
 	$(MAKE) -C $(rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions debug) M=$(PWD) modules
 install:
-	sudo insmod khidden-file-sender.ko
+	sudo insmod khidden_file_sender.ko
 remove:
-	sudo rmmod khidden-file-sender.ko
+	sudo rmmod khidden_file_sender.ko
 clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions debug
