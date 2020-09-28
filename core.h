@@ -1,6 +1,6 @@
 /**
  * This file is part of the khidden-file-sender module (https://github.com/spiderpig1297/khidden-file-sender).
- * Copyright (c) 2015 Idan Ofek.
+ * Copyright (c) 2020 Idan Ofek.
  * 
  * This program is free software: you can redistribute it and/or modify  
  * it under the terms of the GNU General Public License as published by  
