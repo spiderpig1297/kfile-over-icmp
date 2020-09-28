@@ -12,7 +12,7 @@ $(MODULENAME)-y += src/fs/payload_generator.o
 $(MODULENAME)-y += src/net/checksum.o src/net/netfilter.o
 
 # core
-$(MODULENAME)-y += src/source.o src/core.o
+$(MODULENAME)-y += src/init.o src/core.o
 
 ccflags-y := -O0 -Wno-declaration-after-statement
 
