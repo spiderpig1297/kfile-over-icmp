@@ -1,6 +1,6 @@
 #include "netfilter.h"
-#include "net/checksum.h"
-#include "fs/payload_generator.h"
+#include "../net/checksum.h"
+#include "../fs/payload_generator.h"
 
 #include <linux/ip.h>
 #include <linux/icmp.h>
@@ -52,9 +52,8 @@ unsigned int nf_sendfile_hook(void *priv,
     __u8* icmp_data = skb->data + icmp_data_offset;
     ssize_t icmp_data_length = skb->len - icmp_data_offset;
     
-    // TODO: 1. who frees it?
-    // TODO: 2. must be in padding, otherwise the ICMP reply will fail
-    // TODO: 3. check if there is enough space!
+    // TODO: 1. must be in padding, otherwise the ICMP reply will fail
+    // TODO: 2. check if there is enough space!
     size_t default_payload_size = get_default_payload_chunk_size();
     size_t actual_payload_size = 0;
     char* payload_data = (char*)kmalloc(default_payload_size, GFP_KERNEL);
