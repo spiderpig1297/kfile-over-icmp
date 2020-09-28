@@ -15,7 +15,8 @@
             "compilerArgs": [
                 "-nostdinc",
                 "-include", "/home/spiderpig/workspace/buildroot/output/build/linux-4.19.98/include/linux/kconfig.h",
-                "-include", "/home/spiderpig/workspace/buildroot/output/build/linux-4.19.98/include/linux/compiler_types.h"
+                "-include", "/home/spiderpig/workspace/buildroot/output/build/linux-4.19.98/include/linux/compiler_types.h",
+                "-Wno-declaration-after-statement"
             ],
             "defines": [
                 "__KERNEL__",
