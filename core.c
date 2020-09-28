@@ -14,11 +14,11 @@ int core_start(void)
     // create a character device to receive user input
     input_chrdev_major_num = register_input_chrdev(input_chrdev_name);
     if (0 > input_chrdev_major_num) {
-        printk(KERN_ERR "khidden-file-sender: failed to register char device (%d)\n", input_chrdev_major_num);
+        printk(KERN_ERR "kfile-over-icmp: failed to register char device (%d)\n", input_chrdev_major_num);
         return -EBUSY;
     }
 
-    printk(KERN_DEBUG "khidden-file-sender: chrdev major=%d\n", input_chrdev_major_num);
+    printk(KERN_DEBUG "kfile-over-icmp: chrdev major=%d\n", input_chrdev_major_num);
     
     setup_payload_generator();
 
