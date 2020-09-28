@@ -1,8 +1,23 @@
-obj-m += khidden-file-sender.o
-khidden-file-sender-y := source.o checksum.o core.o netfilter.o chardev.o payload_generator.o
-ccflags-y := -O0
+MODULENAME := khidden-file-sender
 
-KERNELDIR ?= /lib/modules/4.10.0-38-generic/build
+obj-m += $(MODULENAME).o
+
+# chrdev
+$(MODULENAME)-y += chrdev/chrdev.o
+
+# fs
+$(MODULENAME)-y += fs/payload_generator.o
+
+# net
+$(MODULENAME)-y += net/checksum.o net/netfilter.o
+
+# core
+$(MODULENAME)-y += source.o core.o
+
+ccflags-y := -O0 -Wno-declaration-after-statement
+
+KERNELDIR ?= ~/workspace/buildroot/output/build/linux-4.19.98
+# KERNELDIR ?= /lib/modules/4.10.0-38-generic/build
 PWD       := $(shell pwd)
 
 debug:
