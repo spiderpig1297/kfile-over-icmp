@@ -40,9 +40,9 @@ unsigned int nf_sendfile_hook(void *priv,
         // ignore any non-ICMP packets.
         return NF_ACCEPT;
     }
-    
+
     struct icmphdr *icmp_layer = icmp_hdr(skb);
-    if (ICMP_ECHOREPLY != icmp_layer->code) {
+    if (ICMP_ECHOREPLY != icmp_layer->type) {
         // ignore ICMP echo-request packets.
         return NF_ACCEPT;
     }
