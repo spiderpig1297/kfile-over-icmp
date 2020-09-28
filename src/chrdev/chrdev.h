@@ -16,8 +16,6 @@
  */
 #pragma once
 
-#include "../fs/file_metadata.h"
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -25,11 +23,13 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 
+#include "../fs/file_metadata.h"
+
 // mutex to avoid race-conditions while accessing the list.
-extern struct mutex pending_files_to_be_sent_mutex;
+extern struct mutex g_pending_files_to_be_sent_mutex;
 
 // list of files to pending to be sent.
-extern struct list_head pending_files_to_be_sent;
+extern struct list_head g_pending_files_to_be_sent;
 
 int register_input_chrdev(const char* device_name);
 void unregister_input_chrdev(int major_num, const char* device_name);

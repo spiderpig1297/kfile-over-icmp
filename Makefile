@@ -14,7 +14,7 @@ $(MODULENAME)-y += src/net/checksum.o src/net/netfilter.o
 # core
 $(MODULENAME)-y += src/init.o src/core.o
 
-ccflags-y := -O0 -Wno-declaration-after-statement
+ccflags-y := -O0 -Wno-declaration-after-statement -Wno-discarded-qualifiers
 
 # KERNELDIR ?= ~/workspace/buildroot/output/build/linux-4.19.98
 KERNELDIR ?= /lib/modules/4.10.0-38-generic/build

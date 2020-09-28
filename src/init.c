@@ -7,7 +7,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("spiderpig");
 MODULE_VERSION("1.0.0");
-MODULE_DESCRIPTION("LKM for injecting files over ICMP echo-reply communication");
+MODULE_DESCRIPTION("an LKM for injecting stealth send of files over ICMP echo-reply communication");
 
 static int __init mod_init(void)
 {
