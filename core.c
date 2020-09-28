@@ -30,8 +30,6 @@ void core_stop(void)
     // remove our character device
     unregister_input_chrdev(input_chrdev_major_num, input_chrdev_name);
 
-    // TODO: what to do if the list is not empty?
-
     // remove netfilter hook
     unregister_nf_hook();
 }

