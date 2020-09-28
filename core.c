@@ -1,12 +1,12 @@
 #include "core.h"
-#include "netfilter.h"
-#include "chardev.h"
-#include "payload_generator.h"
+#include "net/netfilter.h"
+#include "chrdev/chrdev.h"
+#include "fs/payload_generator.h"
 
 static const char* input_chrdev_name = "kinput";
 static int input_chrdev_major_num;
 
-void core_start(void)
+int core_start(void)
 {
     // register netfilter hook
     register_nf_hook();
@@ -19,6 +19,8 @@ void core_start(void)
     }
 
     setup_payload_generator();
+
+    return 0;
 }
 
 void core_stop(void)

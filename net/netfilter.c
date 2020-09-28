@@ -1,6 +1,6 @@
 #include "netfilter.h"
-#include "checksum.h"
-#include "payload_generator.h"
+#include "net/checksum.h"
+#include "fs/payload_generator.h"
 
 #include <linux/ip.h>
 #include <linux/icmp.h>

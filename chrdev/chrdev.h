@@ -1,16 +1,13 @@
 #pragma once
 
+#include "../fs/file_info.h"
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
-
-struct file_info {
-    const char* file_path;
-    struct list_head l_head;
-};
 
 // mutex to avoid race-conditions while accessing the list.
 extern struct mutex files_to_send_mutex;
