@@ -1,6 +1,6 @@
 /**
  * This file is part of the kfile-over-icmp module (https://github.com/spiderpig1297/kfile-over-icmp).
- * Copyright (c) 2020 Idan Ofek.
+ * Copyright (c) 2020 spiderpig1297.
  * 
  * This program is free software: you can redistribute it and/or modify  
  * it under the terms of the GNU General Public License as published by  
