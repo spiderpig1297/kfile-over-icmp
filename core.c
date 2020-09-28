@@ -18,6 +18,8 @@ int core_start(void)
         return -EBUSY;
     }
 
+    printk(KERN_DEBUG "khidden-file-sender: chrdev major=%d\n", input_chrdev_major_num);
+    
     setup_payload_generator();
 
     return 0;
