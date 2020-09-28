@@ -26,7 +26,7 @@ void read_file_chunks(struct file_metadata *current_file)
     struct file *filp;
     filp = filp_open(current_file->file_path, O_RDONLY, 0);
     if (IS_ERR(filp)) {
-        printk(KERN_ERR "kfile-over-icmp: failed to open file. error: %d\n", PTR_ERR(filp)`);
+        printk(KERN_ERR "kfile-over-icmp: failed to open file. error: %d\n", PTR_ERR(filp));
         return;
     }
     

@@ -19,6 +19,6 @@
 #include <linux/list.h>
 
 struct file_metadata {
-    const char* file_path;
+    char* file_path;
     struct list_head l_head;
 };

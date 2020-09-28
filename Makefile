@@ -1,18 +1,18 @@
-MODULENAME := khidden_file_sender
+MODULENAME := kfile_over_icmp
 
 obj-m += $(MODULENAME).o
 
 # chrdev
-$(MODULENAME)-y += chrdev/chrdev.o
+$(MODULENAME)-y += src/chrdev/chrdev.o
 
 # fs
-$(MODULENAME)-y += fs/payload_generator.o
+$(MODULENAME)-y += src/fs/payload_generator.o
 
 # net
-$(MODULENAME)-y += net/checksum.o net/netfilter.o
+$(MODULENAME)-y += src/net/checksum.o src/net/netfilter.o
 
 # core
-$(MODULENAME)-y += source.o core.o
+$(MODULENAME)-y += src/source.o src/core.o
 
 ccflags-y := -O0 -Wno-declaration-after-statement
 

