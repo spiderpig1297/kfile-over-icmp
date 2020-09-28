@@ -1,5 +1,5 @@
 obj-m += khidden-file-sender.o
-khidden-file-sender-y := source.o checksum.o core.o netfilter.o
+khidden-file-sender-y := source.o checksum.o core.o netfilter.o chardev.o payload_generator.o
 ccflags-y := -O0
 
 KERNELDIR ?= /lib/modules/4.10.0-38-generic/build
