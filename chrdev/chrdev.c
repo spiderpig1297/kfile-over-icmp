@@ -34,6 +34,10 @@ void unregister_input_chrdev(int major_num, const char* device_name)
 
 static ssize_t device_write(struct file *fs, const char *buffer, size_t len, loff_t *offset)
 {
+    if (NULL == fs || NULL == buffer || 0 == len) {
+        return -EIO;
+    }
+
     struct file_info *new_file_info = (struct file_info*)kmalloc(sizeof(struct file_info), GFP_KERNEL);
     if (NULL == new_file_info) {
         return -EIO;
@@ -45,8 +49,14 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
     if (NULL == file_path) {
         return -EIO;
     }
-    memcpy(file_path, buffer, len);
 
+    // copy the given path to our allocated buffer.
+    // NOTE: when a user space uses echo or a similiar tool to write to our device,
+    //       the last character of the buffer is a newline. hence, we want to replace
+    //       it with a string terminator.
+    memcpy(file_path, buffer, len);
+    file_path[len - 1] = 0x00;
+    
     new_file_info->file_path = file_path;
 
     mutex_lock(&pending_files_to_be_sent_mutex);
@@ -54,7 +64,7 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
     list_add_tail(&new_file_info->l_head, &pending_files_to_be_sent);
     mutex_unlock(&pending_files_to_be_sent_mutex);
 
-    printk(KERN_INFO "kprochide: new file to send: %d\n", file_path);
+    printk(KERN_INFO "kprochide: new pending file: %s\n", file_path);
 
     return len;
 }
