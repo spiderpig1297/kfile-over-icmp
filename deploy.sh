@@ -6,7 +6,7 @@ HOME_DIRECTORY="/home/spiderpig"
 BUILDROOT_IMAGES_PATH="$HOME_DIRECTORY/workspace/buildroot/output/images"
 VM_USERNAME="root"
 VM_PASSWORD="root"
-KERNEL_MODULE_NAME="khidden-file-sender"
+KERNEL_MODULE_NAME="khidden_file_sender"
 
 CWD=`pwd`
 REMOTE_DIR="/root/"`basename $CWD`
@@ -43,12 +43,23 @@ sshpass -p "$VM_PASSWORD" ssh -p $SSH_PORT $VM_USERNAME@localhost "insmod $REMOT
 
 echo "[+] retrieving $KERNEL_MODULE_NAME .text section"
 text_address=`sshpass -p "$VM_PASSWORD" ssh -p $SSH_PORT $VM_USERNAME@localhost cat /sys/module/$KERNEL_MODULE_NAME/sections/.text`
+
 # data_address=`sshpass -p "$VM_PASSWORD" ssh -p $SSH_PORT $VM_USERNAME@localhost cat /sys/module/$KERNEL_MODULE_NAME/sections/.data`
 # bss_address=`sshpass -p "$VM_PASSWORD" ssh -p $SSH_PORT $VM_USERNAME@localhost cat /sys/module/$KERNEL_MODULE_NAME/sections/.bss`
 # echo "add-symbol-file $KERNEL_MODULE_NAME.ko $text_address -s .data $data_address -s .bss $bss_address" > ~/.gdbinit
 
 GDBINIT_PATH=$HOME_DIRECTORY/.gdbinit
-echo "set auto-load safe-path /" > $GDBINIT_PATH
+
+if [ -f $GDBINIT_PATH.bak ]; then
+    echo "[+] using an existing .gdbinit file"
+    cp $GDBINIT_PATH.bak $GDBINIT_PATH
+else
+    echo "[+] creating a new .gdbinit file"
+    rm -f $GDBINIT_PATH
+    touch $GDBINIT_PATH
+fi
+
+echo "set auto-load safe-path /" >> $GDBINIT_PATH
 echo "add-symbol-file $CWD/$KERNEL_MODULE_NAME.ko $text_address" >> $GDBINIT_PATH
 echo "file $CWD/$KERNEL_MODULE_NAME.ko" >> $GDBINIT_PATH
 
