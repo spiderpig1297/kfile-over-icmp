@@ -30,18 +30,16 @@ struct new_file_signature {
 struct file_chunk {
     const char *data;
     size_t chunk_size;
-    size_t chunk_number;
-    size_t total_chunks_number;
     struct list_head l_head;
 };
 
 // struct for storing all needed information on the file that 
 // is currently being sent.
 // TODO: handle a case where the file is dynamic - pos / file_path changes
-struct current_file_cache {
+// TODO: change cache to metadata
+struct current_file_metadata {
     size_t position;
-    const char *file_path;
-    struct list_head chunks;
+    char *file_path;
 };
 
 // assumes that the caller has already allocated enough space for the payload
