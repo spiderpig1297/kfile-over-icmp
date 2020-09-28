@@ -6,7 +6,7 @@ HOME_DIRECTORY="/home/spiderpig"
 BUILDROOT_IMAGES_PATH="$HOME_DIRECTORY/workspace/buildroot/output/images"
 VM_USERNAME="root"
 VM_PASSWORD="root"
-KERNEL_MODULE_NAME="knetfilter"
+KERNEL_MODULE_NAME="khidden-file-sender"
 
 CWD=`pwd`
 REMOTE_DIR="/root/"`basename $CWD`
