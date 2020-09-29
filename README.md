@@ -47,10 +47,19 @@ $ make remove
 ## __How It Works__
 ___ 
 
+- [But why an LKM?](#but-why-an-lkm)
 - [Mangling outgoing packets](#mangling-outgoing-packets)
 - [Injecting data to ICMP packets](#injecting-data-to-icmp-packets)
 - [Reading user-space files](#reading-user-space-files)
 ___ 
+### But why an LKM?
+
+You probably ask yourselves why to implement this complicated logic as a kernel module. It is harder to implement and it can certainly be implemented in user-mode by using _netfilter_'s user-mode functionality.
+
+Well, there are few reasons why I chose to implement it as an LKM:
+- It is by far more fun and challenging. Implementing this module requires complicated mechanisms such as injecting data to ICMP packets and reading reading and splitting to chunks files from the user-space.
+- It is by far more stealth then a user-mode program. There is no network-related system-command (`iptables`, `netstat`, etc) that will ever be able to know that a driver listens on ICMP and injects data on the replies.
+- Since we are dealing with files from the kernel, each file's metadata is left untouched. It means that reading the file doesn't change it modification time (mtime) nor its access time (atime) or creation time (ctime).
 
 ### Mangling outgoing packets
 
