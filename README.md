@@ -11,9 +11,10 @@ $ cd kfile-over-icmp
 $ make
 $ make install
 ```
+___
 
-Once installed, the module registers a character device from which it gets the paths of the files.
-Run `dmesg` to retrieve the major number of the device, and then create a node to it using `mknod`.
+Once installed, the module registers a character device from which it gets the paths of the files to send.
+Run `dmesg` to retrieve the major number of the device, and then create a node to it using `mknod`:
 
 ```sh
 $ dmesg | tail
@@ -25,7 +26,7 @@ $ dmesg | tail
 $ mknod /dev/readfile c <MAJOR_GOES_HERE> 0
 ```
 
-In order to send a file over ICMP, write its (absolute!) path to our newly-created device.
+In order to send a file over ICMP, write its (absolute!) path to our newly-created device:
 
 ```sh
 $ echo "/file/to/send/ > /dev/readfile
@@ -33,7 +34,9 @@ $ echo "/file/to/send/ > /dev/readfile
 
 __From now on, once an ICMP-request (ping) packet will reach the machine, the module will inject the file's data on the ICMP-reply packet.__
 
-For more information, see (How It Works)[#how-it-works]
+For more information, see [How It Works](#how-it-works).
+
+___ 
 
 To uninstall the module, run:
 
