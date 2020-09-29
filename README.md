@@ -13,7 +13,7 @@ $ make install
 ```
 ___
 
-Once installed, the module registers a character device from which it gets the paths of the files to send.
+Once installed, the module registers a character device from which it reads the paths of the files to send.
 Run `dmesg` to retrieve the major number of the device, and then create a node to it using `mknod`:
 
 ```sh

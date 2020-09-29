@@ -139,6 +139,7 @@ void process_next_pending_file(struct file_metadata *current_file)
     mutex_lock(&g_pending_files_to_be_sent_mutex);
     list_del(&next_pending_file->l_head);
     mutex_unlock(&g_pending_files_to_be_sent_mutex);
+    
     kfree(next_pending_file->file_path);
     kfree(next_pending_file);
 
