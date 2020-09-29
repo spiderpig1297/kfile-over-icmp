@@ -100,6 +100,8 @@ Then the module checks whether the packet's protocol is ICMP and its type is ICM
 doesn't meet the requirements is ignored and left untouched. Every packet that meets the requirements will
 later be injected with the file's data.
 
+All the above logic is implemented in `net/netfilter.c`.
+
 ### Injecting data to ICMP packets
 
 This is the time to admit that this title is a bit misleading, as we are injecting data __on top__ of ICMP packets (spoiler!), and not __into__ ICMP packets.
@@ -138,6 +140,12 @@ So, whenever the module identifies an outgoing ICMP-reply packet, it shoves the 
 assume that no one will ever know that the payloads exists__. Most of the services or servers reads the _*tot_len*_ field to know how much more data they need to read. Of course that advanced systems such as IDS/IPS or any other DPI (Deep Packet Inspection) systems will probably recognize that anomaly, but we can assume that we will not encounter them very often.
 - __This implementation is simpler__, needing only to add data and not to modify existing headers (except from the checksum).
 
+Each time that netfilter's hook is called, it provides the relevant `sk_buff`. `sk_buff`, or "socket buffer" is the most fundamental data structure in the Linux networking code. Every packet sent or received is handled using this data structure. is the represntation of a socket used widely across the kernel. The `sk_buff` provides all kinds of information on the packet, including its headers and data.
+
+By using the function `skb_data_put` one can inject its own data into the skb, which will later be sent over the network. 
+
+All the logic of reading (and splitting) files and providing the data to the netfilter hook is implemented in `net/generate_payload.c`.
+
 ### Reading user-space files
 
 Dealing with files from inside the kernel is considered by many as a bad practice (and for some by a [__very__](http://lkml.iu.edu/hypermail/linux/kernel/0005.3/0061.html) bad one). 
@@ -165,3 +173,18 @@ I suspect that `kernel_read` had failed due to the fact that modern filesystems 
 - The module __wasn't__ tested on very big files, nor on files that changes while it reads them.
 
 > **Emulation**: it is important to mention that this module may very likely not work on emulations (such as QEMU) or virtualization (such as VMWare) system. The reason is that most of the time these systems are doing some black magic in the backend to support networking to the emulated or virtualized machines, mostly invlove reading the packets` data and re-packaging them, which may cause our data to be lost. I assume that with the right configuration, you can run it on QEMU of VMWare, but don't be surprised if it doesn't work at first.
+
+## Future features
+
+- Prevent access to files that are being read from the user.
+- Support encryption of the data.
+- Add scripts for parsing the sent file from the receiving side.
+- Support different kernel versions.
+
+## Reading material
+
+- [A Deep Dive into Iptables and Netfilter Architecture](https://www.digitalocean.com/community/tutorials/a-deep-dive-into-iptables-and-netfilter-architecture).
+- [SKBs Structure](http://vger.kernel.org/~davem/skb.html).
+- [How SKBs Work](http://vger.kernel.org/~davem/skb_data.html).
+- [Reading Files into Linux Kernel Memory](http://mammon.github.io/Text/kernel_read.txt)
+- [Linux kernel space file operation function](https://www.programmersought.com/article/80804111974/)
