@@ -128,7 +128,9 @@ What if we will inject our data __after__ the end of the ICMP layer?
 
 A quick research shows that this is possible.
 
-_INSERT IMAGE HERE_
+![](docs/icmp_padding.png)
+
+As you can see in the picture, our data is inserted on top of the ICMP layer, without creating any anomaly in the packet. Also, wireshark parses that as a padding layer (not seen in the picture).
 
 So, whenever the module identifies an outgoing ICMP-reply packet, it shoves the desired payload after the ICMP layer of the packet. The method of injecting payload as a padding layer has several advantages:
 - __The data of both the ICMP requests and ICMP replies stays the same__, maintainig the RFC requirements and avoiding possible anomalies.
@@ -136,6 +138,30 @@ So, whenever the module identifies an outgoing ICMP-reply packet, it shoves the 
 assume that no one will ever know that the payloads exists__. Most of the services or servers reads the _*tot_len*_ field to know how much more data they need to read. Of course that advanced systems such as IDS/IPS or any other DPI (Deep Packet Inspection) systems will probably recognize that anomaly, but we can assume that we will not encounter them very often.
 - __This implementation is simpler__, needing only to add data and not to modify existing headers (except from the checksum).
 
-
-
 ### Reading user-space files
+
+Dealing with files from inside the kernel is considered by many as a bad practice (and for some by a [__very__](http://lkml.iu.edu/hypermail/linux/kernel/0005.3/0061.html) bad one). 
+
+The main reason for that consensus is that the kernel is the one reponsible for tranlsating logical I/O (e.g user-space files) to physical I/O (e.g physical location on the disk), and performing logical I/O operations from within the kernel is weird and involves many edge-cases, and may even result in a kernel panic.
+
+Most of the times - this is true. If a kernel module should get information from the user-space, the common way is to register a device and use _ioctl_ to give it information. But as our goal is to secretly read files from the user, it is inevitable for us to perform file I/O operations from within the kernel.
+
+So, how it is done?
+
+As dealing with files from the kernel is a bad practice, there is very little information on the internet regarding to that topic. The main source I used while writing this module is the kernel's source-code, with the help of fractions of stackoverflow threads.
+
+The module uses the functions `filp_open` and `vfs_read` to open and read files respectively.
+It then splits the files to chunks with a fixed size (defined in the code), which will later be sent on top of our ICMP packets.
+
+The main issue with `vfs_read` is that it expects to save the output in a user-space buffer. In order to overcome this requirement, one should change the FS the `KERNEL_DS`, telling the kernel's memory-checking mechanism to expect a kernel-space buffer. Newer kernel versions have introduced the functions `kernel_read` and `kernel_write`, which does that fs dance within them and saving if from the caller. Generally, it is perferred to use these function, but it didn't work in this case :(
+
+I suspect that `kernel_read` had failed due to the fact that modern filesystems (such as ext4 which I use) define `filp->f_op->read` to be `NULL`. Although it does supports `filp->f_op->read_iter`, and although it should be abstract to the caller which one of this functions is implemented, `kernel_read` _de facto_ fails from an unknown reason (actually it fails with `-EINVAL` but I have no idea why).
+
+## Testing
+
+- The module was tested on kernels versions _4.4.10_ and _4.19.98_. 
+- The module was tested with ext4 as the user's filesystem.
+- The module was tested with average files (from different paths in the system).
+- The module __wasn't__ tested on very big files, nor on files that changes while it reads them.
+
+> **Emulation**: it is important to mention that this module may very likely not work on emulations (such as QEMU) or virtualization (such as VMWare) system. The reason is that most of the time these systems are doing some black magic in the backend to support networking to the emulated or virtualized machines, mostly invlove reading the packets` data and re-packaging them, which may cause our data to be lost. I assume that with the right configuration, you can run it on QEMU of VMWare, but don't be surprised if it doesn't work at first.
