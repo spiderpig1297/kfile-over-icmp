@@ -44,6 +44,10 @@ To uninstall the module, run:
 $ make remove
 ```
 
+## Example
+
+![](docs/example.gif)
+
 ## __How It Works__
 ___ 
 
