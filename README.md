@@ -47,7 +47,7 @@ $ make remove
 ## __How It Works__
 ___ 
 
-- [But why an LKM?](#why-an-lkm)
+- [Why an LKM?](#why-an-lkm)
 - [Mangling outgoing packets](#mangling-outgoing-packets)
 - [Injecting data to ICMP packets](#injecting-data-to-icmp-packets)
 - [Reading user-space files](#reading-user-space-files)
