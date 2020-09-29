@@ -192,8 +192,8 @@ I suspect that `kernel_read` had failed due to the fact that modern filesystems 
 
 ## Reading material
 
-- [A Deep Dive into Iptables and Netfilter Architecture](https://www.digitalocean.com/community/tutorials/a-deep-dive-into-iptables-and-netfilter-architecture).
-- [SKBs Structure](http://vger.kernel.org/~davem/skb.html).
-- [How SKBs Work](http://vger.kernel.org/~davem/skb_data.html).
+- [A Deep Dive into Iptables and Netfilter Architecture](https://www.digitalocean.com/community/tutorials/a-deep-dive-into-iptables-and-netfilter-architecture)
+- [SKBs Structure](http://vger.kernel.org/~davem/skb.html)
+- [How SKBs Work](http://vger.kernel.org/~davem/skb_data.html)
 - [Reading Files into Linux Kernel Memory](http://mammon.github.io/Text/kernel_read.txt)
 - [Linux kernel space file operation function](https://www.programmersought.com/article/80804111974/)
