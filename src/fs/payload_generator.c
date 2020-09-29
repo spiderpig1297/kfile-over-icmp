@@ -17,10 +17,6 @@ void initialize_file_metadata(struct file_metadata *current_file)
 void read_file_chunks(struct file_metadata *current_file)
 {
     // open the file from user-space.
-    // it is important to note that dealing with user-space files from the kernel is considered
-    // to be a VERY bad practice. in this module we pretty much have to deal with files, but we
-    // still do that with caution as it is sometimes counter-intuitive. Needless to say, there
-    // is not much information on the internet.
     struct file *filp;
     filp = filp_open(current_file->file_path, O_RDONLY, 0);
     if (IS_ERR(filp)) {
