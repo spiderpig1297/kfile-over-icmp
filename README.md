@@ -48,11 +48,11 @@ $ make remove
 
 ![](docs/example.gif)
 
-- __Top-left window__ - tell the module (using our character device) to send the file found in */home/spiderpig/workspace/lkm/kfile-over-icmp/scripts/file_to_send*.
+- __Top-left window__ - tells the module (using our character device) to send the file found in */home/spiderpig/workspace/lkm/kfile-over-icmp/scripts/file_to_send*.
 - __Middle-left window__ - shows `dmesg` output.
 - __Bottom-left window__ - continuous ping which triggers the sending of the file.
 - __Right window__ - python script for reading the ICMP packets and saving the file. Found in [scripts/get_file.py](scripts/get_file.py).
- 
+
 ## __How It Works__
 ___ 
 
