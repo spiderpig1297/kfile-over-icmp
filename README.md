@@ -132,7 +132,7 @@ where we can inject our data. To refresh our memory, here is the ICMP header lay
     
 As we can see, the ICMP header is very small. If its not enough, its data must be the same between the reply and request packets, otherwise each side won't treat the packet as valid (hence won't print the famous `64 from 192.168.1.1 ...` output).
 
-Since injecting our data on one of the above fields is not possible without causing anomaly in both sides,
+Since injecting our data on one of the above fields is not possible without causing an anomaly in both sides,
 we have to find another way. 
 
 What if we will inject our data __after__ the end of the ICMP layer?
@@ -144,7 +144,7 @@ A quick research shows that this is possible.
 As you can see in the picture, our data is inserted on top of the ICMP layer, without creating any anomaly in the packet. Also, wireshark parses that as a padding layer (not seen in the picture).
 
 So, whenever the module identifies an outgoing ICMP-reply packet, it shoves the desired payload after the ICMP layer of the packet. The method of injecting payload as a padding layer has several advantages:
-- __The data of both the ICMP requests and ICMP replies stays the same__, maintainig the RFC requirements and avoiding possible anomalies.
+- __The data of both the ICMP requests and ICMP replies stays the same__, maintaining the RFC requirements and avoiding possible anomalies.
 - Since we are not updating the size of the packet in the IP header (`tot_len`), __one can almost certainly
 assume that no one will ever know that the payloads exists__. Most of the services or servers reads the _*tot_len*_ field to know how much more data they need to read. Of course that advanced systems such as IDS/IPS or any other DPI (Deep Packet Inspection) systems will probably recognize that anomaly, but we can assume that we will not encounter them very often.
 - __This implementation is simpler__, needing only to add data and not to modify existing headers (except from the checksum).
@@ -172,7 +172,7 @@ It then splits the files to chunks with a fixed size (defined in the code), whic
 
 The main issue with `vfs_read` is that it expects to save the output in a user-space buffer. In order to overcome this requirement, one should change the FS the `KERNEL_DS`, telling the kernel's memory-checking mechanism to expect a kernel-space buffer. Newer kernel versions have introduced the functions `kernel_read` and `kernel_write`, which does that fs dance within them and saving if from the caller. Generally, it is perferred to use these function, but it didn't work in this case :(
 
-I suspect that `kernel_read` had failed due to the fact that modern filesystems (such as ext4 which I use) define `filp->f_op->read` to be `NULL`. Although it does supports `filp->f_op->read_iter`, and although it should be abstract to the caller which one of this functions is implemented, `kernel_read` _de facto_ fails from an unknown reason (actually it fails with `-EINVAL` but I have no idea why).
+I suspect that `kernel_read` had failed due to the fact that modern filesystems (such as ext4 which I use) define `filp->f_op->read` to be `NULL`. Although it does supports `filp->f_op->read_iter`, and although it should be abstract to the caller which one of this functions is implemented, `kernel_read` fails _de facto_  from an unknown reason (actually it fails with `-EINVAL` but I have no idea why).
 
 ## Testing
 
@@ -181,13 +181,13 @@ I suspect that `kernel_read` had failed due to the fact that modern filesystems 
 - The module was tested with average files (from different paths in the system).
 - The module __wasn't__ tested on very big files, nor on files that changes while it reads them.
 
-> **Emulation**: it is important to mention that this module may very likely not work on emulations (such as QEMU) or virtualization (such as VMWare) system. The reason is that most of the time these systems are doing some black magic in the backend to support networking to the emulated or virtualized machines, mostly invlove reading the packets` data and re-packaging them, which may cause our data to be lost. I assume that with the right configuration, you can run it on QEMU of VMWare, but don't be surprised if it doesn't work at first.
+> **Emulation**: it is important to mention that this module may very likely not work on emulations (such as QEMU) or virtualization (such as VMWare) system. The reason is that most of the time these systems are doing some black magic in the backend to support networking to the emulated or virtualized machines, mostly invlove reading the packets' data and re-packaging them, which may cause our data to be lost. I assume that with the right configuration, you can run it on QEMU of VMWare, but don't be surprised if it doesn't work at first.
 
 ## Future features
 
-- Prevent access to files that are being read from the user.
+- Prevent from the user to access files that are being read by the module.
 - Support encryption of the data.
-- Add scripts for parsing the sent file from the receiving side.
+- Add the file path to the signature chunk.
 - Support different kernel versions.
 
 ## Reading material
