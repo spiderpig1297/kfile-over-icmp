@@ -85,7 +85,7 @@ void read_file_chunks(struct file_metadata *current_file)
         set_fs(security_old_fs);
 
         // add the chunk to the list and update its size.
-        list_add(&(new_chunk->l_head), &current_file_chunks);
+        list_add_tail(&(new_chunk->l_head), &current_file_chunks);
         new_chunk->chunk_size += size_read;
     }
 
