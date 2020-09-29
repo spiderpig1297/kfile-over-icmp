@@ -47,12 +47,12 @@ $ make remove
 ## __How It Works__
 ___ 
 
-- [But why an LKM?](#but-why-an-lkm)
+- [But why an LKM?](#why-an-lkm)
 - [Mangling outgoing packets](#mangling-outgoing-packets)
 - [Injecting data to ICMP packets](#injecting-data-to-icmp-packets)
 - [Reading user-space files](#reading-user-space-files)
 ___ 
-### But why an LKM?
+### Why an LKM?
 
 You probably ask yourselves why to implement this complicated logic as a kernel module. It is harder to implement and it can certainly be implemented in user-mode by using _netfilter_'s user-mode functionality.
 
