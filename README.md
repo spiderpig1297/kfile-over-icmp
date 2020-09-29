@@ -69,7 +69,7 @@ From netfilter's documentation:
 
     netfilter is a set of hooks inside the Linux kernel that allows kernel modules to register callback functions with the network stack. A registered callback function is then called back for every packet that traverses the respective hook within the network stack.
 
-netfilter offers a number of different places where a user can place hooks:
+netfilter offers a number of different places where a user can place his hooks:
 
     --->[1]--->[ROUTE]--->[3]--->[4]--->
                  |            ^
@@ -93,19 +93,19 @@ netfilter offers a number of different places where a user can place hooks:
     [5] NF_IP_LOCAL_OUT —    triggered by any locally created outbound traffic as soon it hits the network 
                              stack.
 
-The module places an hook on `NF_IP_POST_ROUTING` in order to intercept every outgoing packets, means that
+The module places an hook on `NF_IP_POST_ROUTING` in order to intercept every outgoing packets, meaning that
 the callback will be called for every packet sent from the machine, with the packet as its argument.
 
 Then the module checks whether the packet's protocol is ICMP and its type is ICMP-reply. Every packet that
 doesn't meet the requirements is ignored and left untouched. Every packet that meets the requirements will
-later be injected with the file data.
+later be injected with the file's data.
 
 ### Injecting data to ICMP packets
 
-This is the time to admit that this title is a bit misleading.
+This is the time to admit that this title is a bit misleading, as we are injecting data __on top__ of ICMP packets (spoiler!), and not __into__ ICMP packets.
 
 [ICMP](https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol) packets are very narrowed in places
-where we can inject our data. To refresh your memory, here is the ICMP header layout taken from its [RFC](https://tools.ietf.org/html/rfc792):
+where we can inject our data. To refresh our memory, here is the ICMP header layout taken from its [RFC](https://tools.ietf.org/html/rfc792):
 
     Echo or Echo Reply Message
 
@@ -121,7 +121,7 @@ where we can inject our data. To refresh your memory, here is the ICMP header la
     
 As we can see, the ICMP header is very small. If its not enough, its data must be the same between the reply and request packets, otherwise each side won't treat the packet as valid (hence won't print the famous `64 from 192.168.1.1 ...` output).
 
-Since injecting our data on one of the above fields is not possible without causing anomally in both sides,
+Since injecting our data on one of the above fields is not possible without causing anomaly in both sides,
 we have to find another way. 
 
 What if we will inject our data __after__ the end of the ICMP layer?
@@ -130,11 +130,11 @@ A quick research shows that this is possible.
 
 _INSERT IMAGE HERE_
 
-Whenever the module identifies an outgoing ICMP-reply packet, it shoves the desired payload after the ICMP layer of the packet. The method of injecting payload as a padding layer has several advantages:
+So, whenever the module identifies an outgoing ICMP-reply packet, it shoves the desired payload after the ICMP layer of the packet. The method of injecting payload as a padding layer has several advantages:
 - __The data of both the ICMP requests and ICMP replies stays the same__, maintainig the RFC requirements and avoiding possible anomalies.
 - Since we are not updating the size of the packet in the IP header (`tot_len`), __one can almost certainly
-assume that no one will ever know that the payloads exists__. Most of the services or servers reads the _*tot_len*_ field to know how much data they need to read. It is important to note that advanced systems such as IDS/IPS or any other DPI (Deep Packet Inspection) systems will probably recognize that anomaly, but we can assume that we will not encounter them very often.
-- __The implementation is simpler__, needing only to add data and not to modify existing headers (except from the checksum).
+assume that no one will ever know that the payloads exists__. Most of the services or servers reads the _*tot_len*_ field to know how much more data they need to read. Of course that advanced systems such as IDS/IPS or any other DPI (Deep Packet Inspection) systems will probably recognize that anomaly, but we can assume that we will not encounter them very often.
+- __This implementation is simpler__, needing only to add data and not to modify existing headers (except from the checksum).
 
 
 
