@@ -1,5 +1,6 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include "chrdev.h"
 
@@ -53,9 +54,9 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
     // NOTE: when a user space uses echo or a similiar tool to write to our device,
     //       the last character of the buffer is a newline. hence, we want to replace
     //       it with a string terminator.
-    memcpy(file_path, buffer, len);
+    copy_from_user(file_path, buffer, len);
     file_path[len - 1] = 0x00;
-
+    
     new_file_metadata->file_path = file_path;
 
     mutex_lock(&g_pending_files_to_be_sent_mutex);
