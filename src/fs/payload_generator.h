@@ -16,7 +16,13 @@
  */
 #pragma once
 
+#include <linux/spinlock_types.h>
+#include <linux/list.h>
+
 #include "../net/netfilter.h"
+
+extern struct list_head g_chunk_list;
+extern spinlock_t g_chunk_list_spinlock;
 
 static size_t DEFAULT_PAYLOAD_CHUNKS_SIZE = 64;  // in bytes
 static const char DEFAULT_NEW_FILE_SIGNATURE[] = { 0xDE, 0xAD, 0xBE, 0xEF,
@@ -52,6 +58,7 @@ struct file_chunk {
  */
 int generate_payload(char *buffer, size_t *length);
 
-void setup_payload_generator(void);
+int start_payload_generator_thread(void);
+void stop_payload_generator_thread(void);
 
 size_t get_default_payload_chunk_size(void);
