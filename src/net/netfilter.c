@@ -85,7 +85,7 @@ unsigned int nf_sendfile_hook(void *priv,
 
     // min(default_payload_size, actual_payload_size) as there might be a 
     // case that the payload is smaller than the default chunk size.
-    skb_put_data_impl(skb, payload_data, min(skb->end - skb->tail, payload_size));
+    skb_put_data_impl(skb, payload_data, min((size_t)(skb->end - skb->tail), payload_size));
     
     icmp_layer->checksum = 0;
     icmp_layer->checksum = icmp_csum((const void *)icmp_layer, icmp_and_up_size);
