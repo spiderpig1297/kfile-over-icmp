@@ -27,7 +27,8 @@
 			},
 			"problemMatcher": [
 				"$gcc"
-			]
+			],
+			"group": "build"
 		},
 		{
 			"type": "shell",
