@@ -25,11 +25,8 @@
 
 #include "../fs/file_metadata.h"
 
-// mutex to avoid race-conditions while accessing the list.
-extern struct mutex g_pending_files_to_be_sent_mutex;
-
-// list of files to pending to be sent.
-extern struct list_head g_pending_files_to_be_sent;
+extern struct list_head g_requestd_files_list;
+extern struct mutex g_requestd_files_list_mutex;
 
 int register_input_chrdev(const char* device_name);
 void unregister_input_chrdev(int major_num, const char* device_name);

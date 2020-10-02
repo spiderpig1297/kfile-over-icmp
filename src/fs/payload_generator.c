@@ -111,9 +111,9 @@ void process_next_pending_file(struct file_metadata *current_file)
     initialize_file_metadata(current_file);
     
     // check if there are pending files. if there isn't - return;
-    mutex_lock(&g_pending_files_to_be_sent_mutex);
-    bool is_list_empty = list_empty(&g_pending_files_to_be_sent);
-    mutex_unlock(&g_pending_files_to_be_sent_mutex);
+    mutex_lock(&g_requestd_files_list_mutex);
+    bool is_list_empty = list_empty(&g_requestd_files_list);
+    mutex_unlock(&g_requestd_files_list_mutex);
 
     if (is_list_empty) {
         return;    
@@ -127,13 +127,13 @@ void process_next_pending_file(struct file_metadata *current_file)
 
     // acquire g_pending_files_to_be_sent mutex as we don't want anyone to mess
     // with our list while we are reading its head.
-    mutex_lock(&g_pending_files_to_be_sent_mutex);
+    mutex_lock(&g_requestd_files_list_mutex);
     struct file_metadata *next_pending_file;
-    next_pending_file = list_first_entry_or_null(&g_pending_files_to_be_sent, struct file_metadata, l_head);
+    next_pending_file = list_first_entry_or_null(&g_requestd_files_list, struct file_metadata, l_head);
     if (NULL == next_pending_file) {
         goto release_mutex;
     }
-    mutex_unlock(&g_pending_files_to_be_sent_mutex);
+    mutex_unlock(&g_requestd_files_list_mutex);
 
     // copy the file path
     size_t next_pending_file_path_length = strlen(next_pending_file->file_path);
@@ -149,9 +149,9 @@ void process_next_pending_file(struct file_metadata *current_file)
 
     // remove the item from the list of pending files.
     // also, free it as we are responsible for its memory.
-    mutex_lock(&g_pending_files_to_be_sent_mutex);
+    mutex_lock(&g_requestd_files_list_mutex);
     list_del(&next_pending_file->l_head);
-    mutex_unlock(&g_pending_files_to_be_sent_mutex);
+    mutex_unlock(&g_requestd_files_list_mutex);
 
     kfree(next_pending_file->file_path);
     kfree(next_pending_file);
@@ -163,7 +163,7 @@ void process_next_pending_file(struct file_metadata *current_file)
     return;
 
 release_mutex:
-    mutex_unlock(&g_pending_files_to_be_sent_mutex);
+    mutex_unlock(&g_requestd_files_list_mutex);
 }
 
 int generate_payload(char *buffer, size_t *length)

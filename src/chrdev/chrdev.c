@@ -4,9 +4,8 @@
 
 #include "chrdev.h"
 
-DEFINE_MUTEX(g_pending_files_to_be_sent_mutex);
-
-LIST_HEAD(g_pending_files_to_be_sent);
+LIST_HEAD(g_requestd_files_list);
+DEFINE_MUTEX(g_requestd_files_list_mutex);
 
 static int device_open_count = 0;
 
@@ -50,19 +49,21 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
         return -EIO;
     }
 
-    // copy the path to our allocated buffer.
-    // NOTE: when a user space uses echo or a similiar tool to write to our device,
-    //       the last character of the buffer is a newline. hence, we want to replace
-    //       it with a string terminator.
+    // copy the path from the userspace.
+    // note that when a user uses echo or a similiar tool to write to our device,
+    // the last character of the buffer is a newline. hence, we want to replace
+    // it with a string terminator.
     copy_from_user(file_path, buffer, len);
     file_path[len - 1] = 0x00;
     
     new_file_metadata->file_path = file_path;
 
-    mutex_lock(&g_pending_files_to_be_sent_mutex);
+    mutex_lock(&g_requestd_files_list_mutex);
+
     INIT_LIST_HEAD(&new_file_metadata->l_head);
-    list_add_tail(&new_file_metadata->l_head, &g_pending_files_to_be_sent);
-    mutex_unlock(&g_pending_files_to_be_sent_mutex);
+    list_add_tail(&new_file_metadata->l_head, &g_requestd_files_list);
+    
+    mutex_unlock(&g_requestd_files_list_mutex);
 
     printk(KERN_DEBUG "kfile-over-icmp: new pending file: %s\n", file_path);
 
