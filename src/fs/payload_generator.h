@@ -37,7 +37,7 @@ static const char DEFAULT_NEW_FILE_SIGNATURE[] = { 0xDE, 0xAD, 0xBE, 0xEF,
 struct new_file_signature {
     const char signature[4];
     size_t file_size;
-    // TODO: add an id for the file? to recognize it?
+    // TODO: add an id or path for the file?
 };
 
 /**
