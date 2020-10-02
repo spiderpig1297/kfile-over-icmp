@@ -24,7 +24,7 @@
 extern struct list_head g_chunk_list;
 extern spinlock_t g_chunk_list_spinlock;
 
-static size_t DEFAULT_PAYLOAD_CHUNKS_SIZE = 64;  // in bytes
+static const size_t DEFAULT_PAYLOAD_CHUNKS_SIZE = 64;  // in bytes
 static const char DEFAULT_NEW_FILE_SIGNATURE[] = { 0xDE, 0xAD, 0xBE, 0xEF,
                                                    0xDE, 0xAD, 0xBE, 0xEF };
 

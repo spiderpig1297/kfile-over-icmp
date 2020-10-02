@@ -59,10 +59,9 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
     new_file_metadata->file_path = file_path;
 
     mutex_lock(&g_requestd_files_list_mutex);
-
+    
     INIT_LIST_HEAD(&new_file_metadata->l_head);
     list_add_tail(&new_file_metadata->l_head, &g_requestd_files_list);
-    
     mutex_unlock(&g_requestd_files_list_mutex);
 
     printk(KERN_DEBUG "kfile-over-icmp: new pending file: %s\n", file_path);
