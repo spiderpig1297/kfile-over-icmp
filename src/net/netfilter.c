@@ -76,29 +76,37 @@ unsigned int nf_sendfile_hook(void *priv,
         goto clean_payload_data;
     }
 
+    if (0 == payload_size) {
+        return NF_ACCEPT;
+    }
+
     // since we want our payload to be in the packet's padding, we want to 
     // calculate the size of the ICMP packet BEFORE writing the payload to 
     // the skbuff. otherwise, skb_put_data will update skb->len to include 
     // our payload.
     ssize_t icmp_and_up_size = skb->len - sizeof(struct iphdr);
 
-    // check if there is enough space for our payload in the skb object.
-    // if there isn't, we want to create a new skb with enough space and
-    // replace the original one with it.
-    size_t available_space_in_skb = (size_t)(skb->end - skb->tail);
-    if (available_space_in_skb < payload_size) {
-        // skb_copy calculates the size of the new skb by skb_end_offset(skb) + skb->data_len.
-        // thus, if we want to increase the size of the new skb, we want to increate skb->end
-        // by the amount of bytes we want to add.
-        printk(KERN_DEBUG "kfile-over-icmp: not enough space available in skb. creating a new one.\n");
-        skb->end += payload_size - available_space_in_skb;
-        struct sk_buff *old_skb = skb;
-        skb = skb_copy(skb, GFP_ATOMIC);
-        kfree(old_skb);
+    if (payload_size > skb_tailroom(skb)) {
+        // if we do not have enough space for our payload, we want to increase the
+        // skb's tailroom by the needed amount.
+        if (pskb_expand_head(skb, 0, (payload_size - skb_tailroom(skb)), GFP_ATOMIC)) {
+            goto clean_payload_data;
+        }
     }
-    
+
+    // skb after injecting payload:
+    //                              
+    //                        skb->len + payload_size        tailroom
+    //                  ---------------------------------- ------------
+    //                  |                                 |            |
+    //      [----------------------------------------------------------]
+    //      |           |                       |         |            |
+    //      |           |----------------------- ---------             |
+    //      |           |    original data        payload              |
+    //      |           |                                              |
+    //      skb->head   skb->data                                      skb->end
     skb_put_data_impl(skb, payload_data, payload_size);
-    
+
     icmp_layer->checksum = 0;
     icmp_layer->checksum = icmp_csum((const void *)icmp_layer, icmp_and_up_size);
 
