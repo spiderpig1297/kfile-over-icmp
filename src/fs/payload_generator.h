@@ -55,50 +55,44 @@ struct file_chunk {
 };
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * start_payload_generator_thread - starts the payloads generator thread.
+ *
+ * The thread continuously reads g_requestd_files_list. Once a file is added to the list,
+ * the thread invokes process_next_pending_file function to read it.
+ */
+int start_payload_generator_thread(void);
+
+/**
+ * stop_payload_generator_thread - stops the payloads generator thread.
+ */
+void stop_payload_generator_thread(void);
+
+/**
+ * generate_payload - generates chunk of the last read file.
+ * @buffer: output variable to store the payload data.
+ * @length: output variable to store the payload size.
+ * 
  * NOTE: assumes that buffer was already allocated by the caller and with sufficient size.
  */
 int generate_payload(char *buffer, size_t *length);
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
- */
-int start_payload_generator_thread(void);
-
-/**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
- */
-void stop_payload_generator_thread(void);
-
-/**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
- */
-size_t get_default_payload_chunk_size(void);
-
-/**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * payload_generator_add_modifier - add a data modifier to the list.
+ * @func: modifier function to add.
+ * 
+ * Data modifiers are called in the order they were added to the list.
  */
 int payload_generator_add_modifier(data_modifier_func func);
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * payload_generator_remove_modifier - removes a data modifier from the list.
+ * @func: modifier function to remove.
  */
 void payload_generator_remove_modifier(data_modifier_func func);
+
+/**
+ * get_default_payload_size - returns the default payload size.
+ * 
+ * read_file_chunks splits the file it reads into chunks with that size.
+ */
+size_t get_default_payload_size(void);
