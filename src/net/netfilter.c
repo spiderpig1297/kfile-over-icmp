@@ -116,6 +116,9 @@ clean_payload_data:
     return NF_ACCEPT;
 }
 
+/**
+ * register_nf_hook - registeres the netfilter hook.
+ */
 void register_nf_hook(void)
 {
     netfilter_hook.hook = nf_sendfile_hook;
@@ -126,6 +129,9 @@ void register_nf_hook(void)
     nf_register_net_hook(&init_net, &netfilter_hook);
 }
 
+/**
+ * unregister_nf_hook - unregisteres the netfilter hook.
+ */
 void unregister_nf_hook(void)
 {
     nf_unregister_net_hook(&init_net, &netfilter_hook);
