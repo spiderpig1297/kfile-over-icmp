@@ -48,7 +48,7 @@ In order to send a file over ICMP, write its (absolute!) path to our newly-creat
 $ echo "/file/to/send/ > /dev/readfile
 ```
 
-__From now on, once an ICMP-request (ping) packet will reach the machine, the module will inject the file's data on the ICMP-reply packet.__
+_From now on, once an ICMP-request (ping) packet will reach the machine, the module will inject the file's data on the ICMP-reply packet._
 
 For more information, see [How It Works](#how-it-works).
 
