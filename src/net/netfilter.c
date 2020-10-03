@@ -28,10 +28,10 @@ static inline void *skb_put_data_impl(struct sk_buff *skb, const void *data, uns
  * 
  * Please note the following:
  *      1.    This function will almost always be called INSIDE THE INTERRUPT CONTEXT of the network
- *          card's interrupt handler, which means all the rules of that context also applied here. 
+ *          card's interrupt handler, which means that all the rules of that context also applied here. 
  *          Avoid blocking or accessing user-space.
- *      2.    Note that the payload injected to the ICMP packet must be in the packet's padding, otherwise 
- *          the requesting side won't parse the packet as a valid reply, even if the checksum is correct. 
+ *      2.    The payload injected to the ICMP packet must be in the packet's padding, otherwise the 
+ *          requesting side won't parse the packet as a valid reply, even if the checksum is correct. 
  *      3.    Since we don't have anything smart to do if we fail, every failure in this function will 
  *          cause it to return NF_ACCEPT, telling netfilter that everything is okay and that the packet 
  *          should be transmitted.
@@ -63,7 +63,7 @@ unsigned int nf_sendfile_hook(void *priv,
     }
 
     size_t payload_size = 0;
-    size_t default_payload_size = get_default_payload_chunk_size();
+    size_t default_payload_size = get_default_payload_size();
 
     // Note the GFP_ATOMIC as we are in interrupt context.
     char* payload_data = (char*)kmalloc(default_payload_size, GFP_ATOMIC);
