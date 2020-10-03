@@ -20,6 +20,7 @@
 #include <linux/list.h>
 
 #include "../net/netfilter.h"
+#include "../utils/modifiers/data_modifier.h"
 
 extern struct list_head g_chunk_list;
 extern spinlock_t g_chunk_list_spinlock;
@@ -54,11 +55,42 @@ struct file_chunk {
 };
 
 /**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
  * NOTE: assumes that buffer was already allocated by the caller and with sufficient size.
  */
 int generate_payload(char *buffer, size_t *length);
 
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
 int start_payload_generator_thread(void);
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
 void stop_payload_generator_thread(void);
 
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
 size_t get_default_payload_chunk_size(void);
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+int payload_generator_add_modifier(data_modifier_func func);

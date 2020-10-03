@@ -46,7 +46,7 @@ static ssize_t device_write(struct file *fs, const char *buffer, size_t len, lof
     // payload_generator.h is the one responsible for freeing the allocated memory.
     char* file_path = (char*)kmalloc(len, GFP_KERNEL);
     if (NULL == file_path) {
-        return -EIO;
+        return -ENOMEM;
     }
 
     // copy the path from the userspace.

