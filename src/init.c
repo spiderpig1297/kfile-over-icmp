@@ -7,7 +7,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("spiderpig");
 MODULE_VERSION("1.0.0");
-MODULE_DESCRIPTION("an LKM for injecting stealth send of files over ICMP echo-reply communication");
+MODULE_DESCRIPTION("an LKM for stealth send of files over ICMP communication");
 
 static int __init mod_init(void)
 {
@@ -22,7 +22,7 @@ static void __exit mod_exit(void)
 {
     core_stop();
 
-    printk(KERN_DEBUG "kfile-over-icmp: LKM unloaded succesfully\n");
+    printk(KERN_DEBUG "kfile-over-icmp: LKM unloaded successfully\n");
 }
 
 module_init(mod_init);

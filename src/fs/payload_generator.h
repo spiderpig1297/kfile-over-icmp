@@ -94,3 +94,11 @@ size_t get_default_payload_chunk_size(void);
  * @flags: the type of memory to allocate (see kmalloc).
  */
 int payload_generator_add_modifier(data_modifier_func func);
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+void payload_generator_remove_modifier(data_modifier_func func);

