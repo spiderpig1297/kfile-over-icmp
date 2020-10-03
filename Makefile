@@ -8,7 +8,7 @@ RM = rm -rf
 
 .PHONY: all debug release install remove clean
 
-all: debug
+all: release
 
 release:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
