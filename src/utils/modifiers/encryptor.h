@@ -20,9 +20,11 @@
 #include <linux/kernel.h>
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * encrypt_data - encrypts a given buffer with a XOR encryption.
+ * @buffer: data to encrypt.
+ * @length: data length.
+ *
+ * The function acts as a data_modifier_t and can't receive the encryption key.
+ * Key is taken from the configuration (config.h).
  */
 int encrypt_data(char *buffer, size_t *length);

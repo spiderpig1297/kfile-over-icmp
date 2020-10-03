@@ -18,4 +18,7 @@
 
 #include <linux/module.h>
 
+/**
+ * hide_module - hides the module by removing it from the modules list and removing its kobject.
+ */
 void hide_module(void);

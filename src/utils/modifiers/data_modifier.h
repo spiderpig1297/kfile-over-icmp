@@ -18,6 +18,12 @@
 
 #include <linux/list.h>
 
+/**
+ * Prototype for modifying file's data.
+ * Each function receives the file's data and is allowed to make any 
+ * modification to it, as long is it doesn't kfree() it and remembers to
+ * update the length argument before returning.
+ */
 typedef int(*data_modifier_func)(char *buffer, size_t *length);
 
 struct data_modifier {
