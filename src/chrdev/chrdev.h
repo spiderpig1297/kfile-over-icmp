@@ -28,5 +28,17 @@
 extern struct list_head g_requestd_files_list;
 extern struct mutex g_requestd_files_list_mutex;
 
+/**
+ * register_input_chrdev - registers the module's character device.
+ * @device_name: name of the device.
+ * 
+ * The device is used for recieving the paths of the files a user wishs to send.
+ */
 int register_input_chrdev(const char* device_name);
+
+/**
+ * unregister_input_chrdev - unregisters the module's character device.
+ * @major_num: the major number of the device (received from register_input_chrdev).
+ * @device_name: name of the device.
+ */
 void unregister_input_chrdev(int major_num, const char* device_name);
