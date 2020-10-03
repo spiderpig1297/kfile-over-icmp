@@ -1,17 +1,31 @@
 # __kfile-over-icmp__
 
-> **Note**: This LKM was developed using linux kernel version *4.4.10* and *4.98.13*. Should you have problems compiling this module, please check for your kernel version first.
+> **Note**: this LKM was developed using linux kernel version *4.4.10* and *4.98.13*. Should you have problems compiling this module, please check for your kernel version first.
 
 _kfile-over-icmp_ is a loadable kernel module for stealth sending of files over ICMP communication.
 
-## __Usage__
+## Features
+
+* Dynmically receive file paths and inject their data over ICMP communication.
+* Supports compressions and encryption of the files before sending.
+* Hides itself (both from `lsmod` and from /sys/module).
+* Provides a script for parsing ICMP communication and extracting recieved files (to run on the recieving side).
+
+## __Installation__
 ```sh
 $ git clone https://github.com/spiderpig1297/kfile-over-icmp.git
 $ cd kfile-over-icmp
 $ make
 $ make install
 ```
-___
+
+To uninstall the module, run:
+
+```sh
+$ make remove
+```
+
+## __Usage__
 
 Once installed, the module registers a character device from which it reads the paths of the files to send.
 Run `dmesg` to retrieve the major number of the device, and then create a node to it using `mknod`:
@@ -19,9 +33,11 @@ Run `dmesg` to retrieve the major number of the device, and then create a node t
 ```sh
 $ dmesg | tail
 
-[15132.935862] kfile-over-icmp: LKM loaded
-[15132.935864] kfile-over-icmp: registered netfilter hook
-[15132.935867] kfile-over-icmp: succesfully registered character device. major: 243
+[18850.002913] kfile-over-icmp: stopped payload generator thread
+[18850.002914] kfile-over-icmp: LKM unloaded successfully
+[18852.059661] kfile-over-icmp: LKM loaded
+[18852.059713] kfile-over-icmp: registered netfilter hook
+[18852.059715] kfile-over-icmp: successfully registered character device. major: 243
 
 $ mknod /dev/readfile c <MAJOR_GOES_HERE> 0
 ```
@@ -32,17 +48,9 @@ In order to send a file over ICMP, write its (absolute!) path to our newly-creat
 $ echo "/file/to/send/ > /dev/readfile
 ```
 
-__From now on, once an ICMP-request (ping) packet will reach the machine, the module will inject the file's data on the ICMP-reply packet.__
+_From now on, once an ICMP-request (ping) packet will reach the machine, the module will inject the file's data on the ICMP-reply packet._
 
 For more information, see [How It Works](#how-it-works).
-
-___ 
-
-To uninstall the module, run:
-
-```sh
-$ make remove
-```
 
 ## Example
 
@@ -54,11 +62,10 @@ $ make remove
 - __Right window__ - python script for reading the ICMP packets and saving the file. Found in [scripts/get_file.py](scripts/get_file.py).
 
 ## __How It Works__
-___ 
-
 - [Why an LKM?](#why-an-lkm)
 - [Mangling outgoing packets](#mangling-outgoing-packets)
 - [Injecting data to ICMP packets](#injecting-data-to-icmp-packets)
+- [Modifying file data before sending](#modifying-file-data-before-sending)
 - [Reading user-space files](#reading-user-space-files)
 ___ 
 ### Why an LKM?
@@ -102,14 +109,22 @@ netfilter offers a number of different places where a user can place his hooks:
     [5] NF_IP_LOCAL_OUT —    triggered by any locally created outbound traffic as soon it hits the network 
                              stack.
 
-The module places an hook on `NF_IP_POST_ROUTING` in order to intercept every outgoing packets, meaning that
-the callback will be called for every packet sent from the machine, with the packet as its argument.
+The module places an hook on `NF_IP_POST_ROUTING` in order to intercept every outgoing packets, meaning that the callback will be called for every packet sent from the machine, with the packet as its argument.
 
-Then the module checks whether the packet's protocol is ICMP and its type is ICMP-reply. Every packet that
-doesn't meet the requirements is ignored and left untouched. Every packet that meets the requirements will
-later be injected with the file's data.
+Then the module checks whether the packet's protocol is ICMP and its type is ICMP-reply. Every packet that doesn't meet the requirements is ignored and left untouched. Every packet that meets the requirements will later be injected with the file's data.
 
 All the above logic is implemented in `net/netfilter.c`.
+
+#### Interrupt context
+
+When a packet is received or about to be sent via the network card, the kernel invokes the interrupt handler routines of its matching driver. It means that when our netfilter hook is being called, we are already in _interrupt context_. Running inside an interrupt context means that the rules of that context are also applied here, among them:
+
+* can't block or sleep.
+* can't access user-space.
+* can't use paging.
+* and more...
+
+Any attempt to do one of the above inside the netfilter's hook can result in kernel panic.
 
 ### Injecting data to ICMP packets
 
@@ -132,8 +147,7 @@ where we can inject our data. To refresh our memory, here is the ICMP header lay
     
 As we can see, the ICMP header is very small. If its not enough, its data must be the same between the reply and request packets, otherwise each side won't treat the packet as valid (hence won't print the famous `64 from 192.168.1.1 ...` output).
 
-Since injecting our data on one of the above fields is not possible without causing an anomaly in both sides,
-we have to find another way. 
+Since injecting our data on one of the above fields is not possible without causing an anomaly in both sides we have to find another way. 
 
 What if we will inject our data __after__ the end of the ICMP layer?
 
@@ -155,6 +169,14 @@ By using the function `skb_data_put` one can inject its own data into the skb, w
 
 All the logic of reading (and splitting) files and providing the data to the netfilter hook is implemented in `net/generate_payload.c`.
 
+### Modifying file data before sending
+
+The module supports modifying each file's data before sending it. It can be good in cases where we want to compress or encrypt the data before sending it to increase performance / avoid being detected by network sniffers.
+
+The core is responsible to add all to modifiers (according to the configuration found in `config.h`) to the `payload_generator` thread. The latter then invokes each modifier when a file is read. For example:
+
+        original file data ---> g_modifiers.compress() ---> g_modifiers.encrypt() ---> modified data
+        
 ### Reading user-space files
 
 Dealing with files from inside the kernel is considered by many as a bad practice (and for some by a [__very__](http://lkml.iu.edu/hypermail/linux/kernel/0005.3/0061.html) bad one). 
@@ -186,7 +208,6 @@ I suspect that `kernel_read` had failed due to the fact that modern filesystems 
 ## Future features
 
 - Prevent from the user to access files that are being read by the module.
-- Support encryption of the data.
 - Add the file path to the signature chunk.
 - Support different kernel versions.
 
