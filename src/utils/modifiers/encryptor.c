@@ -1,5 +1,5 @@
 #include "encryptor.h"
-#include "../../config.h"
+#include "../../config/config.h"
 
 typedef unsigned long enc_key_t;
 

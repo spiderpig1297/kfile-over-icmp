@@ -12,6 +12,7 @@ $(MODULENAME)-y += src/chrdev/chrdev.o
 $(MODULENAME)-y += src/fs/payload_generator.o
 $(MODULENAME)-y += src/net/netfilter.o src/net/checksum.o
 $(MODULENAME)-y += src/core.o src/init.o
+$(MODULENAME)-y += src/config/config.o
 $(MODULENAME)-y += src/utils/hiders/hide_module.o 
 $(MODULENAME)-y += src/utils/modifiers/encryptor.o 
 

@@ -5,8 +5,11 @@
 #include "netfilter.h"
 #include "../net/checksum.h"
 #include "../fs/payload_generator.h"
+#include "../config/config.h"
 
 #define ICMPHDR_TIMESTAMP_FIELD_SIZE (8)
+#define IP_ADDRESS_SIZE (16)
+#define IP_ADDRESS_PRINTF_FORMAT "%pI4"
 
 static struct nf_hook_ops netfilter_hook;
 
@@ -20,6 +23,39 @@ static inline void *skb_put_data_impl(struct sk_buff *skb, const void *data, uns
 	void *tmp = skb_put(skb, len);
 	memcpy(tmp, data, len);
 	return tmp;
+}
+
+bool is_packet_in_whitelist(const struct iphdr *ip_layer)
+{
+    bool is_dst_ip_ok = false;
+    bool is_src_ip_ok = false;
+
+#ifdef CONFIG_ICMP_WHITELIST_DST_IPS
+    int i = 0;
+    const char packet_dst_ip[IP_ADDRESS_SIZE];
+    snprintf(packet_dst_ip, IP_ADDRESS_SIZE, IP_ADDRESS_PRINTF_FORMAT, &ip_layer->daddr);
+    for (; i < WHITELIST_DST_IPS_NUMBER; ++i) {
+        if (0 == strncmp(packet_dst_ip, WHITELIST_DST_IPS[i], IP_ADDRESS_SIZE)) {
+            is_dst_ip_ok = true;
+        }
+    }
+#else
+    is_dst_ip_ok = true;
+#endif
+
+#ifdef CONFIG_ICMP_WHITELIST_SRC_IPS
+    const char packet_src_ip[IP_ADDRESS_SIZE];
+    snprintf(packet_src_ip, IP_ADDRESS_SIZE, IP_ADDRESS_PRINTF_FORMAT, &ip_layer->saddr);
+    for (i = 0; i < WHITELIST_SRC_IPS_NUMBER; ++i) {
+        if (0 == strncmp(packet_src_ip, WHITELIST_SRC_IPS[i], IP_ADDRESS_SIZE)) {
+            is_src_ip_ok = true;
+        }
+    }
+#else
+    is_src_ip_ok = true;
+#endif
+
+    return is_src_ip_ok && is_dst_ip_ok;
 }
 
 /**
@@ -51,8 +87,14 @@ unsigned int nf_sendfile_hook(void *priv,
     }
 
     struct icmphdr *icmp_layer = icmp_hdr(skb);
-    if (ICMP_ECHOREPLY != icmp_layer->type) {
+    // if (ICMP_ECHOREPLY != icmp_layer->type) {
+    if (ICMP_ECHO != icmp_layer->type) {
         // Ignore any non-ICMP-reply packets.
+        return NF_ACCEPT;
+    }
+
+    if (!is_packet_in_whitelist(ip_layer)) {
+        // Ignore any packets not in the white list.
         return NF_ACCEPT;
     }
 
