@@ -1,6 +1,6 @@
 # __kfile-over-icmp__
 
-> **Note**: This LKM was developed using linux kernel version *4.4.10* and *4.98.13*. Should you have problems compiling this module, please check for your kernel version first.
+> **Note**: this LKM was developed using linux kernel version *4.4.10* and *4.98.13*. Should you have problems compiling this module, please check for your kernel version first.
 
 _kfile-over-icmp_ is a loadable kernel module for stealth sending of files over ICMP communication.
 
