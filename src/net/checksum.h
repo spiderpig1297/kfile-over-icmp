@@ -18,4 +18,9 @@
 
 #include <linux/types.h>
 
+/**
+ * icmp_csum - calculates ICMP packet checksum.
+ * @icmp_layer: raw data of the ICMP packet.
+ * @length: packet's size.
+ */
 __sum16 icmp_csum(const void* icmp_layer, size_t length);

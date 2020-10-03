@@ -25,5 +25,14 @@
 typedef int(*get_payload_func_t)(char *buffer, size_t *length);
 extern get_payload_func_t g_get_payload_func;
 
+/**
+ * register_nf_hook - registers the netfilter hook.
+ * 
+ * The hook will be invoked each time an outgoing packet is about to "hit the wire".
+ */
 void register_nf_hook(void);
+
+/**
+ * unregister_nf_hook - unregisters the netfilter hook.
+ */
 void unregister_nf_hook(void);
