@@ -170,10 +170,9 @@ void read_file_chunks(const char* file_path)
         }
 
         ssize_t size_to_read = min(available_space_in_chunk, (size_t)(file_size - current_position));
-        memcpy(new_chunk->data + offset_in_buffer, file_data, size_to_read);
+        memcpy(new_chunk->data + offset_in_buffer, file_data + current_position, size_to_read);
         new_chunk->chunk_size += size_to_read;
         current_position += size_to_read;
-        printk(KERN_DEBUG "%d!\n", current_position);
 
         unsigned long flags;
         spin_lock_irqsave(&g_chunk_list_spinlock, flags);
@@ -309,7 +308,6 @@ void stop_payload_generator_thread(void)
     kthread_stop(g_payload_generator_thread);
     put_task_struct(g_payload_generator_thread);  
 }
-
 
 int payload_generator_add_modifier(data_modifier_func func)
 {

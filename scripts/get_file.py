@@ -11,15 +11,19 @@ FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from __future__ import division  # __future__ must be at the file beginning
+
 import os
 import argparse
 import threading 
 import struct
 import time
+import traceback
 from scapy.all import *
 from Queue import Queue
 
 ICMP_ECHOREPLY = 0
+ENCRYPTION_KEY = 0x1d8a2fe91cb4dd2e
 
 
 class Signature(object):
@@ -75,13 +79,16 @@ class ICMPSniffer(threading.Thread):
 class FileSaver(threading.Thread):
     """
     """
-    def __init__(self, received_chunks_queue):
+    def __init__(self, received_chunks_queue, is_compressed=False, is_encrypted=False):
         super(FileSaver, self).__init__()
         self.received_chunks_queue = received_chunks_queue
+        self.is_compressed = is_compressed
+        self.is_encrypted = is_encrypted
         self._stop_event = threading.Event()
 
     def run(self):
         while not self._stop_event.isSet():
+            print "[+] waiting for files..."
             try:
                 file_chunk = self._get_next_chunk()
                 while not self._is_first_chunk(file_chunk):
@@ -90,26 +97,48 @@ class FileSaver(threading.Thread):
                 file_size = self._get_file_size_from_chunk(file_chunk)
                 file_chunk.data = file_chunk.data[Signature.MAGIC_LEN + Signature.FILE_SIZE_LEN:]
 
-                print "[+] found file with length {} bytes".format(file_size)
+                print "[+] found pending file with length {} bytes".format(file_size)
 
                 file_data = ''
                 while True:
                     size_to_read = min(len(file_chunk.data), file_size - len(file_data))
                     file_data += file_chunk.data[:size_to_read]
+
+                    print "[+] downloading: {}% ({}/{} bytes)".format(int((len(file_data) / file_size) * 100.0), len(file_data), file_size)
+
                     if len(file_data) == file_size:
                         break                    
 
                     file_chunk = self._get_next_chunk()
-                    
+                
+                if self.is_compressed:
+                    file_data = self._extract_data(compressed_data=file_data)
+                if self.is_encrypted:
+                    file_data = self._decrypt_data(encrypted_data=file_data, key=ENCRYPTION_KEY)
+
                 with open("received_file", "wb") as f:
                     f.write(file_data)
 
                 print "[+] saved {} bytes to {}".format(len(file_data), os.path.abspath("received_file"))
-            except Exception:
+            except Exception as e:
                 print "[+] ERROR: received an exception while trying to fetch file."
+                print "[+] {}.".format(traceback.format_exc())
+                print "[+] continuing..."
 
     def stop(self):
         self._stop_event.set()
+
+    def _decrypt_data(self, encrypted_data, key):
+        encryption_key_length = (len(hex(key)) - len('0x')) // 2
+
+        decrypted_data = ''
+        for i in xrange(len(encrypted_data)):
+            decrypted_data += chr(ord(encrypted_data[i]) ^ (key >> (8 * (i % encryption_key_length)) & 0xFF))
+
+        return decrypted_data
+
+    def _extract_data(self, compressed_data):
+        return compressed_data
 
     def _get_next_chunk(self):
         return self.received_chunks_queue.get()
@@ -129,7 +158,7 @@ def main():
     received_chunks_queue = Queue()
 
     sniffer = ICMPSniffer(received_chunks_queue=received_chunks_queue)
-    file_saver = FileSaver(received_chunks_queue=received_chunks_queue)
+    file_saver = FileSaver(received_chunks_queue=received_chunks_queue, is_encrypted=True)
 
     sniffer.daemon = True 
     file_saver.daemon = True

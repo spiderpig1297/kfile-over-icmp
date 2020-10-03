@@ -1,7 +1,7 @@
 MODULENAME ?= kfile_over_icmp
 
-KERNELDIR ?= ~/workspace/buildroot/output/build/linux-4.19.98
-# KERNELDIR ?= /lib/modules/4.10.0-38-generic/build
+# KERNELDIR ?= ~/workspace/buildroot/output/build/linux-4.19.98
+KERNELDIR ?= /lib/modules/4.10.0-38-generic/build
 PWD       := $(shell pwd)
 
 RM = rm -rf
