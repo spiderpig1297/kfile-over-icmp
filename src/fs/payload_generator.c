@@ -150,7 +150,7 @@ void read_file_chunks(const char* file_path)
             goto free_vmalloc;
         }
 
-        new_chunk->data = (char *)kmalloc(get_default_payload_chunk_size(), GFP_ATOMIC);
+        new_chunk->data = (char *)kmalloc(get_default_payload_size(), GFP_ATOMIC);
         if (NULL == new_chunk->data) {
             kfree(new_chunk);
             goto free_vmalloc;
@@ -159,7 +159,7 @@ void read_file_chunks(const char* file_path)
         new_chunk->chunk_size = 0;
 
         size_t offset_in_buffer = 0;  // Will include the signature if it is the first chunk.
-        size_t available_space_in_chunk = get_default_payload_chunk_size();
+        size_t available_space_in_chunk = get_default_payload_size();
 
         if (is_first_chunk) {
             // If it is the first chunk, we want to add a signature to it.
@@ -173,6 +173,7 @@ void read_file_chunks(const char* file_path)
         memcpy(new_chunk->data + offset_in_buffer, file_data, size_to_read);
         new_chunk->chunk_size += size_to_read;
         current_position += size_to_read;
+        printk(KERN_DEBUG "%d!\n", current_position);
 
         unsigned long flags;
         spin_lock_irqsave(&g_chunk_list_spinlock, flags);
@@ -349,7 +350,7 @@ void payload_generator_remove_modifier(data_modifier_func func)
     mutex_unlock(&g_data_modifiers_list_mutex);
 }
 
-size_t get_default_payload_chunk_size(void)
+size_t get_default_payload_size(void)
 {
     // TODO: check if less then the size of struct signature
     return DEFAULT_PAYLOAD_CHUNKS_SIZE;
