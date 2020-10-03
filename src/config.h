@@ -18,5 +18,8 @@
 
 // TODO: use kconfig to allow configuration via a menu.
 
-// Prevents from the module to be detected by lsmod.
 #define CONFIG_HIDE_MODULE
+
+#define CONFIG_ENCRYPT_FILE
+#define CONFIG_ENCRYPTION_KEY       (0x1d8a2fe91cb4dd2e)
+#define CONFIG_ENCRYPTION_KEY_SIZE  (8)
