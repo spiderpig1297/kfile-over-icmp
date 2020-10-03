@@ -208,7 +208,6 @@ I suspect that `kernel_read` had failed due to the fact that modern filesystems 
 ## Future features
 
 - Prevent from the user to access files that are being read by the module.
-- Support encryption of the data.
 - Add the file path to the signature chunk.
 - Support different kernel versions.
 
