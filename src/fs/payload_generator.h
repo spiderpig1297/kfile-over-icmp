@@ -26,6 +26,8 @@ extern struct list_head g_chunk_list;
 extern spinlock_t g_chunk_list_spinlock;
 
 static const size_t DEFAULT_PAYLOAD_CHUNKS_SIZE = 64;  // in bytes
+
+#define DEAFAULT_NEW_FILE_SIGNATURE_SIZE (8)
 static const char DEFAULT_NEW_FILE_SIGNATURE[] = { 0xDE, 0xAD, 0xBE, 0xEF,
                                                    0xDE, 0xAD, 0xBE, 0xEF };
 
@@ -36,7 +38,7 @@ static const char DEFAULT_NEW_FILE_SIGNATURE[] = { 0xDE, 0xAD, 0xBE, 0xEF,
  * packets to differentiate between the sent files.
  */
 struct new_file_signature {
-    const char signature[4];
+    const char signature[DEAFAULT_NEW_FILE_SIGNATURE_SIZE];
     size_t file_size;
     // TODO: add an id or path for the file?
 };
