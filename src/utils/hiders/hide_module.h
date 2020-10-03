@@ -1,4 +1,4 @@
-/**
+/*
  * This file is part of the kfile-over-icmp module (https://github.com/spiderpig1297/kfile-over-icmp).
  * Copyright (c) 2020 spiderpig1297.
  * 

@@ -1,4 +1,4 @@
-/**
+/*
  * This file is part of the kfile-over-icmp module (https://github.com/spiderpig1297/kfile-over-icmp).
  * Copyright (c) 2020 spiderpig1297.
  * 
@@ -23,3 +23,13 @@
 #define CONFIG_ENCRYPT_FILE
 #define CONFIG_ENCRYPTION_KEY       (0x1d8a2fe91cb4dd2e)
 #define CONFIG_ENCRYPTION_KEY_SIZE  (8)
+
+#define CONFIG_ICMP_WHITELIST_DST_IPS
+#ifdef CONFIG_ICMP_WHITELIST_DST_IPS
+extern const char *WHITELIST_DST_IPS[];
+#endif
+
+// #define CONFIG_ICMP_WHITELIST_SRC_IP
+#ifdef CONFIG_ICMP_WHITELIST_SRC_IP
+extern const char *WHITELIST_SRC_IPS[];
+#endif
