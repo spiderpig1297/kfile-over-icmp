@@ -87,12 +87,11 @@ unsigned int nf_sendfile_hook(void *priv,
     }
 
     struct icmphdr *icmp_layer = icmp_hdr(skb);
-    // if (ICMP_ECHOREPLY != icmp_layer->type) {
-    if (ICMP_ECHO != icmp_layer->type) {
+    if (ICMP_ECHOREPLY != icmp_layer->type) {
         // Ignore any non-ICMP-reply packets.
         return NF_ACCEPT;
     }
-
+    
     if (!is_packet_in_whitelist(ip_layer)) {
         // Ignore any packets not in the white list.
         return NF_ACCEPT;
