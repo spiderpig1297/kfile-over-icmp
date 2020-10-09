@@ -34,18 +34,6 @@ int read_file_thread_func(void* data);
 ssize_t safe_read_from_file(struct file *filp, char *file_data, size_t file_size, loff_t *current_position)
 {
     // Read the file's content.
-    // Few important notes:
-    //      1. Traditionally, the common way of reading files in the kernel is by using VFS functions 
-    //         like vfs_read. vfs_read invokes the f_ops of a given file to read it. In newer kernel
-    //         versions, the functions kernel_read and kernel_write were introduced, replacing the "old" 
-    //         vfs_XXX functions. using kernel_read and kernel_write is considered a good practice as it 
-    //         eliminates the need of messing with the FS (explained in 2). However, and from a very 
-    //         mysterious reason, kernel_read didn't work here - hence vfs_read is used.
-    //      2. vfs_read expects to save the read data into a user-space buffer. In order to pass a 
-    //         kernel-space allocated buffer to it, we need to overwriting the kernel' FS. By setting the
-    //         kernel FS to KERNEL_DS, we actually tell it to expect a kernel-space buffer. Note that
-    //         restoring the old FS after the call to vfs_read is super-important, otherwise kernel panic
-    //         will be caused.
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 14, 0)
     mm_segment_t security_old_fs = get_fs();
     set_fs(get_ds());
